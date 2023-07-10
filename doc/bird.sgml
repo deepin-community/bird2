@@ -1113,14 +1113,16 @@ This argument can be omitted if there exists only a single instance.
 	Show the list of symbols defined in the configuration (names of
 	protocols, routing tables etc.).
 
-	<tag><label id="cli-show-route">show route [[for] <m/prefix/|<m/IP/] [table (<m/t/ | all)] [(import|export) table <m/p/.<m/c/] [filter <m/f/|where <m/c/] [(export|preexport|noexport) <m/p/] [protocol <m/p/] [(stats|count)] [<m/options/]</tag>
+	<tag><label id="cli-show-route">show route [[(for|in)] <m/prefix/|for <m/IP/] [table (<m/t/|all)] [(import|export) table <m/p/.<m/c/] [filter <m/f/|where <m/cond/] [(export|preexport|noexport) <m/p/] [protocol <m/p/] [(stats|count)] [<m/options/]</tag>
 	Show contents of specified routing tables, that is routes, their metrics
 	and (in case the <cf/all/ switch is given) all their attributes.
 
 	<p>You can specify a <m/prefix/ if you want to print routes for a
 	specific network. If you use <cf>for <m/prefix or IP/</cf>, you'll get
 	the entry which will be used for forwarding of packets to the given
-	destination. By default, all routes for each network are printed with
+	destination. Finally, if you use <cf>in <m/prefix/</cf>, you get all
+	prefixes covered by the given prefix.
+	By default, all routes for each network are printed with
 	the selected one at the top, unless <cf/primary/ is given in which case
 	only the selected route is shown.
 
@@ -1885,7 +1887,7 @@ protocol sections.
 <label id="babel-intro">
 
 <p>The Babel protocol
-(<rfc id="6126">) is a loop-avoiding distance-vector routing protocol that is
+(<rfc id="8966">) is a loop-avoiding distance-vector routing protocol that is
 robust and efficient both in ordinary wired networks and in wireless mesh
 networks. Babel is conceptually very simple in its operation and "just works"
 in its default configuration, though some configuration is possible and in some
@@ -1916,7 +1918,7 @@ protocol babel [<name>] {
 	ipv6 [sadr] { <channel config> };
         randomize router id <switch>;
 	interface <interface pattern> {
-		type <wired|wireless>;
+		type <wired|wireless|tunnel>;
 		rxcost <number>;
 		limit <number>;
 		hello interval <time>;
@@ -1929,6 +1931,12 @@ protocol babel [<name>] {
 		check link <switch>;
 		next hop ipv4 <address>;
 		next hop ipv6 <address>;
+		extended next hop <switch>;
+		rtt cost <number>;
+		rtt min <time>;
+		rtt max <time>;
+		rtt decay <number>;
+		send timestamps <switch>;
 		authentication none|mac [permissive];
 		password "&lt;text&gt;";
 		password "&lt;text&gt;" {
@@ -1959,15 +1967,16 @@ protocol babel [<name>] {
       router ID every time it starts up, which avoids this problem at the cost
       of not having stable router IDs in the network. Default: no.
 
-      <tag><label id="babel-type">type wired|wireless </tag>
-      This option specifies the interface type: Wired or wireless. On wired
-      interfaces a neighbor is considered unreachable after a small number of
-      Hello packets are lost, as described by <cf/limit/ option. On wireless
+      <tag><label id="babel-type">type wired|wireless|tunnel </tag>
+      This option specifies the interface type: Wired, wireless or tunnel. On
+      wired interfaces a neighbor is considered unreachable after a small number
+      of Hello packets are lost, as described by <cf/limit/ option. On wireless
       interfaces the ETX link quality estimation technique is used to compute
       the metrics of routes discovered over this interface. This technique will
       gradually degrade the metric of routes when packets are lost rather than
-      the more binary up/down mechanism of wired type links. Default:
-      <cf/wired/.
+      the more binary up/down mechanism of wired type links. A tunnel is like a
+      wired interface, but turns on RTT-based metrics with a default cost of 96.
+      Default: <cf/wired/.
 
       <tag><label id="babel-rxcost">rxcost <m/num/</tag>
       This option specifies the nominal RX cost of the interface. The effective
@@ -2032,6 +2041,42 @@ protocol babel [<name>] {
       interface. If not set, the same link-local address that is used as the
       source for Babel packets will be used. In normal operation, it should not
       be necessary to set this option.
+
+      <tag><label id="babel-extended-next-hop">extended next hop <m/switch/</tag>
+      If enabled, BIRD will accept and emit IPv4 routes with an IPv6 next
+      hop when IPv4 addresses are absent from the interface as described in
+      <rfc id="9229">. Default: yes.
+
+      <tag><label id="babel-rtt-cost">rtt cost <m/number/</tag>
+      The RTT-based cost that will be applied to all routes from each neighbour
+      based on the measured RTT to that neighbour. If this value is set,
+      timestamps will be included in generated Babel Hello and IHU messages, and
+      (if the neighbours also have timestamps enabled), the RTT to each
+      neighbour will be computed. An additional cost is added to a neighbour if
+      its RTT is above the <ref id="babel-rtt-min" name="rtt min"> value
+      configured on the interface. The added cost scales linearly from 0 up to
+      the RTT cost configured in this option; the full cost is applied if the
+      neighbour RTT reaches the RTT configured in the <ref id="babel-rtt-max"
+      name="rtt max"> option (and for all RTTs above this value). Default: 0
+      (disabled), except for tunnel interfaces, where it is 96.
+
+      <tag><label id="babel-rtt-min">rtt min <m/time/ s|ms</tag>
+      The minimum RTT above which the RTT cost will start to be applied (scaling
+      linearly from zero up to the full cost). Default: 10 ms
+
+      <tag><label id="babel-rtt-max">rtt max <m/time/ s|ms</tag>
+      The maximum RTT above which the full RTT cost will start be applied.
+      Default: 120 ms
+
+      <tag><label id="babel-rtt-decay">rtt decay <m/number/</tag>
+      The decay factor used for the exponentional moving average of the RTT
+      samples from each neighbour, in units of 1/256. Higher values discards old
+      RTT samples faster. Must be between 1 and 256. Default: 42
+
+      <tag><label id="babel-send-timestamps">send timestamps <m/switch/</tag>
+      Whether to send the timestamps used for RTT calculation on this interface.
+      Sending the timestamps enables peers to calculate an RTT to this node,
+      even if no RTT cost is applied to the route metrics. Default: yes.
 
       <tag><label id="babel-authentication">authentication none|mac [permissive]</tag>
       Selects authentication method to be used. <cf/none/ means that packets
@@ -2394,6 +2439,8 @@ avoid routing loops.
 <item> <rfc id="8092"> - BGP Large Communities Attribute
 <item> <rfc id="8203"> - BGP Administrative Shutdown Communication
 <item> <rfc id="8212"> - Default EBGP Route Propagation Behavior without Policies
+<item> <rfc id="8654"> - Extended Message Support for BGP
+<item> <rfc id="9072"> - Extended Optional Parameters Length for BGP OPEN Message
 <item> <rfc id="9117"> - Revised Validation Procedure for BGP Flow Specifications
 <item> <rfc id="9234"> - Route Leak Prevention and Detection Using Roles
 </itemize>
@@ -2615,12 +2662,19 @@ using the following configuration parameters:
 	keeps MED attribute). Default: disabled.
 
 	<tag><label id="bgp-allow-local-pref">allow bgp_local_pref <m/switch/</tag>
-	A standard BGP implementation do not send the Local Preference attribute
-	to eBGP neighbors and ignore this attribute if received from eBGP
+	Standard BGP implementations do not send the Local Preference attribute
+	to EBGP neighbors and ignore this attribute if received from EBGP
 	neighbors, as per <rfc id="4271">.  When this option is enabled on an
-	eBGP session, this attribute will be sent to and accepted from the peer,
+	EBGP session, this attribute will be sent to and accepted from the peer,
 	which is useful for example if you have a setup like in <rfc id="7938">.
-	The option does not affect iBGP sessions. Default: off.
+	The option does not affect IBGP sessions. Default: off.
+
+	<tag><label id="bgp-allow-med">allow bgp_med <m/switch/</tag>
+	Standard BGP implementations do not propagate the MULTI_EXIT_DESC
+	attribute unless it is configured locally. When this option is enabled
+	on an EBGP session, this attribute will be sent to the peer regardless,
+	which is useful for example if you have a setup like in <rfc id="7938">.
+	The option does not affect IBGP sessions. Default: off.
 
 	<tag><label id="bgp-allow-local-as">allow local as [<m/number/]</tag>
 	BGP prevents routing loops by rejecting received routes with the local
@@ -3247,6 +3301,35 @@ protocol bgp {
 		table mymulticasttable4; # Another IPv4 table, dedicated for multicast
 		igp table myigptable4;
 	};
+}
+</code>
+
+
+<sect>BMP
+<label id="bmp">
+
+<p>The BGP Monitoring Protocol is used for monitoring BGP sessions and obtaining
+routing table data. The current implementation in BIRD is a preliminary release
+with a limited feature set, it will be subject to significant changes in the
+future. It is not ready for production usage and therefore it is not compiled
+by default and have to be enabled during installation by the configure option
+<tt/--with-protocols=/.
+
+<p>The implementation is limited to monitor protocol state changes and routes
+in <ref id="bgp-import-table" name="BGP import tables"> (not regular routing
+tables), therefore import table must be enabled in BGP protocols. All BGP
+protocols are monitored automatically.
+
+<sect1>Example
+<label id="bmp-exam">
+
+<p><code>
+protocol bmp {
+	# The monitoring station to connect to
+	station address ip 198.51.100.10 port 1790;
+
+	# required option
+	monitoring rib in pre_policy;
 }
 </code>
 
@@ -5287,8 +5370,8 @@ as the destination becomes adjacent again.
 (i.e., they can be used multiple times for a route, one time for each nexthop).
 Syntactically, they are not separate options but just parts of <cf/route/
 statement after each <cf/via/ statement, not separated by semicolons. E.g.,
-statement <cf/route 10.0.0.0/8 via 192.0.2.1 bfd weight 1 via 192.0.2.2 weight
-2;/ describes a route with two nexthops, the first nexthop has two per-nexthop
+statement <cf>route 10.0.0.0/8 via 192.0.2.1 bfd weight 1 via 192.0.2.2 weight
+2;</cf> describes a route with two nexthops, the first nexthop has two per-nexthop
 options (<cf/bfd/ and <cf/weight 1/), the second nexthop has just <cf/weight 2/.
 
 <descrip>

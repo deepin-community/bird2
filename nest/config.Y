@@ -154,6 +154,8 @@ CF_ENUM_PX(T_ENUM_AF, AF_, AFI_, IPV4, IPV6)
 
 CF_GRAMMAR
 
+kw_sym: MIN MAX ;
+
 /* Setting of router ID */
 
 conf: rtrid ;
@@ -632,7 +634,7 @@ CF_CLI(SHOW INTERFACES SUMMARY,,, [[Show summary of network interfaces]])
 { if_show_summary(); } ;
 
 CF_CLI_HELP(SHOW ROUTE, ..., [[Show routing table]])
-CF_CLI(SHOW ROUTE, r_args, [[[<prefix>|for <prefix>|for <ip>] [table <t>] [(import|export) table <p>.<c>] [filter <f>|where <cond>] [all] [primary] [filtered] [(export|preexport|noexport) <p>] [protocol <p>] [stats|count]]], [[Show routing table]])
+CF_CLI(SHOW ROUTE, r_args, [[[<prefix>|for <prefix>|for <ip>|in <prefix>] [table <t>] [(import|export) table <p>.<c>] [filter <f>|where <cond>] [all] [primary] [filtered] [(export|preexport|noexport) <p>] [protocol <p>] [stats|count]]], [[Show routing table]])
 { rt_show($3); } ;
 
 r_args:

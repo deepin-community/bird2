@@ -97,7 +97,7 @@ struct bgp_config {
   int capabilities;			/* Enable capability handshake [RFC 5492] */
   int enable_refresh;			/* Enable local support for route refresh [RFC 2918] */
   int enable_as4;			/* Enable local support for 4B AS numbers [RFC 6793] */
-  int enable_extended_messages;		/* Enable local support for extended messages [draft] */
+  int enable_extended_messages;		/* Enable local support for extended messages [RFC 8654] */
   int enable_hostname;			/* Enable local support for hostname [draft] */
   u32 rr_cluster_id;			/* Route reflector cluster ID, if different from local ID */
   int rr_client;			/* Whether neighbor is RR client of me */
@@ -108,6 +108,7 @@ struct bgp_config {
   int interpret_communities;		/* Hardwired handling of well-known communities */
   int allow_local_as;			/* Allow that number of local ASNs in incoming AS_PATHs */
   int allow_local_pref;			/* Allow LOCAL_PREF in EBGP sessions */
+  int allow_med;			/* Allow BGP_MED in EBGP sessions */
   int allow_as_sets;			/* Allow AS_SETs in incoming AS_PATHs */
   int enforce_first_as;			/* Enable check for neighbor AS as first AS in AS_PATH */
   int gr_mode;				/* Graceful restart mode (BGP_GR_*) */
@@ -239,7 +240,7 @@ struct bgp_caps {
   u32 as4_number;			/* Announced ASN */
 
   u8 as4_support;			/* Four-octet AS capability, RFC 6793 */
-  u8 ext_messages;			/* Extended message length,  RFC draft */
+  u8 ext_messages;			/* Extended message length,  RFC 8654 */
   u8 route_refresh;			/* Route refresh capability, RFC 2918 */
   u8 enhanced_refresh;			/* Enhanced route refresh,   RFC 7313 */
   u8 role;				/* BGP role capability,      RFC 9234 */
@@ -433,6 +434,7 @@ struct bgp_write_state {
   int as4_session;
   int add_path;
   int mpls;
+  int sham;
 
   eattr *mp_next_hop;
   const adata *mpls_labels;
@@ -495,6 +497,13 @@ struct bgp_parse_state {
 #define BGP_CF_WALK_CHANNELS(P,C) WALK_LIST(C, P->c.channels) if (C->c.channel == &channel_bgp)
 #define BGP_WALK_CHANNELS(P,C) WALK_LIST(C, P->p.channels) if (C->c.channel == &channel_bgp)
 
+#define BGP_MSG_HDR_MARKER_SIZE	16
+#define BGP_MSG_HDR_MARKER_POS	0
+#define BGP_MSG_HDR_LENGTH_SIZE	2
+#define BGP_MSG_HDR_LENGTH_POS	BGP_MSG_HDR_MARKER_SIZE
+#define BGP_MSG_HDR_TYPE_SIZE	1
+#define BGP_MSG_HDR_TYPE_POS	(BGP_MSG_HDR_MARKER_SIZE + BGP_MSG_HDR_LENGTH_SIZE)
+
 static inline int bgp_channel_is_ipv4(struct bgp_channel *c)
 { return BGP_AFI(c->afi) == BGP_AFI_IPV4; }
 
@@ -540,6 +549,8 @@ void bgp_refresh_end(struct bgp_channel *c);
 void bgp_store_error(struct bgp_proto *p, struct bgp_conn *c, u8 class, u32 code);
 void bgp_stop(struct bgp_proto *p, int subcode, byte *data, uint len);
 const char *bgp_format_role_name(u8 role);
+
+void bgp_fix_attr_flags(ea_list *attrs);
 
 static inline int
 rte_resolvable(rte *rt)
@@ -587,7 +598,9 @@ bgp_set_attr_data(ea_list **to, struct linpool *pool, uint code, uint flags, voi
   bgp_set_attr(to, pool, code, flags, (uintptr_t) a);
 }
 
-#define bgp_unset_attr(to, pool, code) ea_unset_attr(to, pool, 0, code)
+static inline void
+bgp_unset_attr(ea_list **to, struct linpool *pool, uint code)
+{ ea_unset_attr(to, pool, 0, EA_CODE(PROTOCOL_BGP, code)); }
 
 int bgp_encode_mp_reach_mrt(struct bgp_write_state *s, eattr *a, byte *buf, uint size);
 
@@ -612,6 +625,7 @@ struct rte *bgp_rte_modify_stale(struct rte *r, struct linpool *pool);
 u32 bgp_rte_igp_metric(struct rte *);
 void bgp_rt_notify(struct proto *P, struct channel *C, net *n, rte *new, rte *old);
 int bgp_preexport(struct channel *, struct rte *);
+void bgp_rte_update_in_notify(struct channel *C, const net_addr *n, const struct rte *new, const struct rte_src *src);
 int bgp_get_attr(const struct eattr *e, byte *buf, int buflen);
 void bgp_get_route_info(struct rte *, byte *buf);
 int bgp_total_aigp_metric_(rte *e, u64 *metric, const struct adata **ad);
@@ -645,6 +659,7 @@ void bgp_log_error(struct bgp_proto *p, u8 class, char *msg, unsigned code, unsi
 
 void bgp_update_next_hop(struct bgp_export_state *s, eattr *a, ea_list **to);
 
+byte * bgp_create_end_mark(struct bgp_channel *c, byte *buf);
 
 /* Packet types */
 

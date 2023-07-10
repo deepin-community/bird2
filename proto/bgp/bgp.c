@@ -101,9 +101,9 @@
  * RFC 8203 - BGP Administrative Shutdown Communication
  * RFC 8212 - Default EBGP Route Propagation Behavior without Policies
  * RFC 8654 - Extended Message Support for BGP
+ * RFC 9072 - Extended Optional Parameters Length for BGP OPEN Message
  * RFC 9117 - Revised Validation Procedure for BGP Flow Specifications
  * RFC 9234 - Route Leak Prevention and Detection Using Roles
- * draft-ietf-idr-ext-opt-param-07
  * draft-uttaro-idr-bgp-persistence-04
  * draft-walton-bgp-hostname-capability-02
  */
@@ -125,6 +125,7 @@
 #include "lib/string.h"
 
 #include "bgp.h"
+#include "proto/bmp/bmp.h"
 
 
 static list STATIC_LIST_INIT(bgp_sockets);		/* Global list of listening sockets */
@@ -866,7 +867,10 @@ bgp_graceful_restart_timeout(timer *t)
     }
   }
   else
+  {
     bgp_stop(p, 0, NULL, 0);
+    bmp_peer_down(p, BE_NONE, NULL, 0);
+  }
 }
 
 static void
@@ -990,7 +994,10 @@ bgp_sock_err(sock *sk, int err)
   if (err)
     BGP_TRACE(D_EVENTS, "Connection lost (%M)", err);
   else
+  {
     BGP_TRACE(D_EVENTS, "Connection closed");
+    bmp_peer_down(p, BE_SOCKET, NULL, 0);
+  }
 
   if ((conn->state == BS_ESTABLISHED) && p->gr_ready)
     bgp_handle_graceful_restart(p);
@@ -1109,6 +1116,7 @@ bgp_connect(struct bgp_proto *p)	/* Enter Connect state and start establishing c
   s->tos = IP_PREC_INTERNET_CONTROL;
   s->password = p->cf->password;
   s->tx_hook = bgp_connected;
+  s->flags = p->cf->free_bind ? SKF_FREEBIND : 0;
   BGP_TRACE(D_EVENTS, "Connecting to %I%J from local address %I%J",
 	    s->daddr, ipa_is_link_local(s->daddr) ? p->cf->iface : NULL,
 	    s->saddr, ipa_is_link_local(s->saddr) ? s->iface : NULL);
@@ -1314,6 +1322,7 @@ bgp_neigh_notify(neighbor *n)
       bgp_store_error(p, NULL, BE_MISC, BEM_NEIGHBOR_LOST);
       /* Perhaps also run bgp_update_startup_delay(p)? */
       bgp_stop(p, 0, NULL, 0);
+      bmp_peer_down(p, BE_MISC, NULL, 0);
     }
   }
   else if (p->cf->check_link && !(n->iface->flags & IF_LINK_UP))
@@ -1325,6 +1334,7 @@ bgp_neigh_notify(neighbor *n)
       if (ps == PS_UP)
 	bgp_update_startup_delay(p);
       bgp_stop(p, 0, NULL, 0);
+      bmp_peer_down(p, BE_MISC, NULL, 0);
     }
   }
   else
@@ -1366,6 +1376,7 @@ bgp_bfd_notify(struct bfd_request *req)
       if (ps == PS_UP)
 	bgp_update_startup_delay(p);
       bgp_stop(p, 0, NULL, 0);
+      bmp_peer_down(p, BE_MISC, NULL, 0);
     }
   }
 }
@@ -1693,6 +1704,10 @@ bgp_init(struct proto_config *CF)
   P->rte_recalculate = cf->deterministic_med ? bgp_rte_recalculate : NULL;
   P->rte_modify = bgp_rte_modify_stale;
   P->rte_igp_metric = bgp_rte_igp_metric;
+
+#ifdef CONFIG_BMP
+  P->rte_update_in_notify = bgp_rte_update_in_notify;
+#endif
 
   p->cf = cf;
   p->is_internal = (cf->local_as == cf->remote_as);
