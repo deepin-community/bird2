@@ -46,7 +46,7 @@ CF_KEYWORDS(CEASE, PREFIX, LIMIT, HIT, ADMINISTRATIVE, SHUTDOWN, RESET, PEER,
 CF_GRAMMAR
 
 /* Workaround for collisions between keywords and symbols */
-symbol: ROLE | PEER | PROVIDER | CUSTOMER | RS_SERVER | RS_CLIENT ;
+kw_sym: ROLE | PEER | PROVIDER | CUSTOMER | RS_SERVER | RS_CLIENT ;
 
 proto: bgp_proto '}'  ;
 
@@ -199,6 +199,7 @@ bgp_proto:
  | bgp_proto ALLOW LOCAL AS ';' { BGP_CFG->allow_local_as = -1; }
  | bgp_proto ALLOW LOCAL AS expr ';' { BGP_CFG->allow_local_as = $5; }
  | bgp_proto ALLOW BGP_LOCAL_PREF bool ';' { BGP_CFG->allow_local_pref = $4; }
+ | bgp_proto ALLOW BGP_MED bool ';' { BGP_CFG->allow_med = $4; }
  | bgp_proto ALLOW AS SETS bool ';' { BGP_CFG->allow_as_sets = $5; }
  | bgp_proto GRACEFUL RESTART bool ';' { BGP_CFG->gr_mode = $4; }
  | bgp_proto GRACEFUL RESTART AWARE ';' { BGP_CFG->gr_mode = BGP_GR_AWARE; }

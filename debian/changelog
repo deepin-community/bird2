@@ -1,3 +1,9 @@
+bird2 (2.13.1-1) unstable; urgency=medium
+
+  * Bump upstream version to 2.13.1
+
+ -- Chang Yang <yangchang@uniontech.com>  Mon, 10 Jul 2023 10:06:01 +0800
+
 bird2 (2.0.12-7) unstable; urgency=medium
 
   [ Miao Wang ]
