@@ -26,7 +26,7 @@ static list radv_dns_list;	/* Used by radv_rdnss and radv_dnssl */
 static u8 radv_mult_val;	/* Used by radv_mult for second return value */
 
 static inline void
-radv_add_to_custom_list(list *l, int type, struct bytestring *payload)
+radv_add_to_custom_list(list *l, int type, const struct adata *payload)
 {
   if (type < 0 || type > 255) cf_error("RA cusom type must be in range 0-255");
   struct radv_custom_config *cf = cfg_allocz(sizeof(struct radv_custom_config));
@@ -50,8 +50,6 @@ CF_ENUM(T_ENUM_RA_PREFERENCE, RA_PREF_, LOW, MEDIUM, HIGH)
 
 CF_GRAMMAR
 
-kw_sym: CUSTOM | OPTION | VALUE ;
-
 proto: radv_proto ;
 
 radv_proto_start: proto_start RADV
@@ -73,7 +71,7 @@ radv_proto_item:
  | PREFIX radv_prefix { add_tail(&RADV_CFG->pref_list, NODE this_radv_prefix); }
  | RDNSS { init_list(&radv_dns_list); } radv_rdnss { add_tail_list(&RADV_CFG->rdnss_list, &radv_dns_list); }
  | DNSSL { init_list(&radv_dns_list); } radv_dnssl { add_tail_list(&RADV_CFG->dnssl_list, &radv_dns_list); }
- | CUSTOM OPTION TYPE expr VALUE BYTESTRING { radv_add_to_custom_list(&RADV_CFG->custom_list, $4, $6); }
+ | CUSTOM OPTION TYPE expr VALUE bytestring { radv_add_to_custom_list(&RADV_CFG->custom_list, $4, $6); }
  | TRIGGER net_ip6 { RADV_CFG->trigger = $2; }
  | PROPAGATE ROUTES bool { RADV_CFG->propagate_routes = $3; }
  ;
@@ -138,7 +136,7 @@ radv_iface_item:
  | PREFIX radv_prefix { add_tail(&RADV_IFACE->pref_list, NODE this_radv_prefix); }
  | RDNSS { init_list(&radv_dns_list); } radv_rdnss { add_tail_list(&RADV_IFACE->rdnss_list, &radv_dns_list); }
  | DNSSL { init_list(&radv_dns_list); } radv_dnssl { add_tail_list(&RADV_IFACE->dnssl_list, &radv_dns_list); }
- | CUSTOM OPTION TYPE expr VALUE BYTESTRING { radv_add_to_custom_list(&RADV_IFACE->custom_list, $4, $6); }
+ | CUSTOM OPTION TYPE expr VALUE bytestring { radv_add_to_custom_list(&RADV_IFACE->custom_list, $4, $6); }
  | RDNSS LOCAL bool { RADV_IFACE->rdnss_local = $3; }
  | DNSSL LOCAL bool { RADV_IFACE->dnssl_local = $3; }
  | CUSTOM OPTION LOCAL bool { RADV_IFACE->custom_local = $4; }

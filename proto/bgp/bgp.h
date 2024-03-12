@@ -96,6 +96,7 @@ struct bgp_config {
   u32 default_med;			/* Default value for MULTI_EXIT_DISC attribute */
   int capabilities;			/* Enable capability handshake [RFC 5492] */
   int enable_refresh;			/* Enable local support for route refresh [RFC 2918] */
+  int enable_enhanced_refresh;		/* Enable local support for enhanced route refresh [RFC 7313] */
   int enable_as4;			/* Enable local support for 4B AS numbers [RFC 6793] */
   int enable_extended_messages;		/* Enable local support for extended messages [RFC 8654] */
   int enable_hostname;			/* Enable local support for hostname [draft] */
@@ -232,7 +233,7 @@ struct bgp_af_caps {
   u8 llgr_able;				/* Long-lived GR, RFC draft */
   u32 llgr_time;			/* Long-lived GR stale time */
   u8 llgr_flags;			/* Long-lived GR per-AF flags */
-  u8 ext_next_hop;			/* Extended IPv6 next hop,   RFC 5549 */
+  u8 ext_next_hop;			/* Extended IPv6 next hop,   RFC 8950 */
   u8 add_path;				/* Multiple paths support,   RFC 7911 */
 };
 
@@ -286,6 +287,11 @@ struct bgp_conn {
   u8 as4_session;			/* Session uses 4B AS numbers in AS_PATH (both sides support it) */
   u8 ext_messages;			/* Session uses extended message length */
   u32 received_as;			/* ASN received in OPEN message */
+
+  byte *local_open_msg;			/* Saved OPEN messages (no header) */
+  byte *remote_open_msg;
+  uint local_open_length;
+  uint remote_open_length;
 
   struct bgp_caps *local_caps;
   struct bgp_caps *remote_caps;
@@ -487,6 +493,7 @@ struct bgp_parse_state {
 #define BGP_PORT		179
 #define BGP_VERSION		4
 #define BGP_HEADER_LENGTH	19
+#define BGP_HDR_MARKER_LENGTH	16
 #define BGP_MAX_MESSAGE_LENGTH	4096
 #define BGP_MAX_EXT_MSG_LENGTH	65535
 #define BGP_RX_BUFFER_SIZE	4096
@@ -604,6 +611,7 @@ bgp_unset_attr(ea_list **to, struct linpool *pool, uint code)
 
 int bgp_encode_mp_reach_mrt(struct bgp_write_state *s, eattr *a, byte *buf, uint size);
 
+const char * bgp_attr_name(uint code);
 int bgp_encode_attrs(struct bgp_write_state *s, ea_list *attrs, byte *buf, byte *end);
 ea_list * bgp_decode_attrs(struct bgp_parse_state *s, byte *data, uint len);
 void bgp_finish_attrs(struct bgp_parse_state *s, rta *a);
@@ -625,10 +633,11 @@ struct rte *bgp_rte_modify_stale(struct rte *r, struct linpool *pool);
 u32 bgp_rte_igp_metric(struct rte *);
 void bgp_rt_notify(struct proto *P, struct channel *C, net *n, rte *new, rte *old);
 int bgp_preexport(struct channel *, struct rte *);
-void bgp_rte_update_in_notify(struct channel *C, const net_addr *n, const struct rte *new, const struct rte_src *src);
 int bgp_get_attr(const struct eattr *e, byte *buf, int buflen);
 void bgp_get_route_info(struct rte *, byte *buf);
 int bgp_total_aigp_metric_(rte *e, u64 *metric, const struct adata **ad);
+
+byte * bgp_bmp_encode_rte(struct bgp_channel *c, byte *buf, const net_addr *n, const struct rte *new, const struct rte_src *src);
 
 #define BGP_AIGP_METRIC		1
 #define BGP_AIGP_MAX		U64(0xffffffffffffffff)
@@ -658,8 +667,8 @@ const char * bgp_error_dsc(unsigned code, unsigned subcode);
 void bgp_log_error(struct bgp_proto *p, u8 class, char *msg, unsigned code, unsigned subcode, byte *data, unsigned len);
 
 void bgp_update_next_hop(struct bgp_export_state *s, eattr *a, ea_list **to);
+byte *bgp_create_end_mark_(struct bgp_channel *c, byte *buf);
 
-byte * bgp_create_end_mark(struct bgp_channel *c, byte *buf);
 
 /* Packet types */
 
