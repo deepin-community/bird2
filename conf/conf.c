@@ -49,6 +49,7 @@
 #include "nest/route.h"
 #include "nest/protocol.h"
 #include "nest/iface.h"
+#include "nest/mpls.h"
 #include "lib/resource.h"
 #include "lib/string.h"
 #include "lib/event.h"
@@ -139,6 +140,7 @@ config_parse(struct config *c)
   cf_lex_init(0, c);
   sysdep_preconfig(c);
   protos_preconfig(c);
+  mpls_preconfig(c);
   rt_preconfig(c);
   cf_parse();
   rt_postconfig(c);
@@ -170,7 +172,6 @@ int
 cli_parse(struct config *c)
 {
   int done = 0;
-  c->fallback = config;
   new_config = c;
   cfg_mem = c->mem;
   if (setjmp(conf_jmpbuf))
@@ -181,7 +182,6 @@ cli_parse(struct config *c)
   done = 1;
 
 cleanup:
-  c->fallback = NULL;
   new_config = NULL;
   cfg_mem = NULL;
   return done;
@@ -301,6 +301,7 @@ config_do_commit(struct config *c, int type)
   int force_restart = sysdep_commit(c, old_config);
   DBG("global_commit\n");
   force_restart |= global_commit(c, old_config);
+  mpls_commit(c, old_config);
   DBG("rt_commit\n");
   rt_commit(c, old_config);
   DBG("protos_commit\n");
@@ -549,9 +550,9 @@ order_shutdown(int gr)
   memcpy(c, config, sizeof(struct config));
   init_list(&c->protos);
   init_list(&c->tables);
+  init_list(&c->mpls_domains);
   init_list(&c->symbols);
   memset(c->def_tables, 0, sizeof(c->def_tables));
-  HASH_INIT(c->sym_hash, c->pool, 4);
   c->shutdown = 1;
   c->gr_down = gr;
 

@@ -1,8 +1,13 @@
-bird2 (2.13.1-1) unstable; urgency=medium
+bird2 (2.14-1) unstable; urgency=medium
 
-  * Bump upstream version to 2.13.1
+  * New upstream version 2.14 (Closes: #1040031)
+  * Remove patches now included upstream
+  * Remove ancient debian/NEWS
+  * Remove trailing whitespace from d/rules
+  * Add d/bird2-doc.doc-base
+  * Add Rules-Requires-Root: no to d/control
 
- -- Chang Yang <yangchang@uniontech.com>  Mon, 10 Jul 2023 10:06:01 +0800
+ -- Jakub Ružička <jakub.ruzicka@nic.cz>  Tue, 10 Oct 2023 13:14:00 +0200
 
 bird2 (2.0.12-7) unstable; urgency=medium
 
