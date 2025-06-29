@@ -1,7 +1,7 @@
 <!doctype birddoc system>
 
 <!--
-	BIRD 2.0 documentation
+	BIRD documentation
 
 This documentation can have 4 forms: sgml (this is master copy), html, ASCII
 text and dvi/postscript (generated from sgml using sgmltools). You should always
@@ -20,7 +20,7 @@ configuration - something in config which is not keyword.
 
 <book>
 
-<title>BIRD 2.0 User's Guide
+<title>BIRD {{ VERSION }} User's Guide
 <author>
 Ondrej Filip <it/&lt;feela@network.cz&gt;/,
 Martin Mares <it/&lt;mj@ucw.cz&gt;/,
@@ -125,11 +125,11 @@ Anyway, it will probably work well also on older systems.
 and Perl, installing BIRD should be as easy as:
 
 <code>
-	./configure
-	make
-	make install
-	vi /usr/local/etc/bird.conf
-	bird
+./configure
+make
+make install
+vi /usr/local/etc/bird.conf
+bird
 </code>
 
 <p>You can use <tt>./configure --help</tt> to get a list of configure
@@ -335,7 +335,7 @@ Configuration keywords are <cf/flow4/ and <cf/flow6/.
 <itemize>
 	<item>(PK) IP prefix together with its length
 	<item>(PK) Flow definition data
-	<item>Flow action (encoded internally as BGP communities according to <rfc id="5575">)
+	<item>Flow action (encoded internally as BGP communities according to <rfc id="8955">)
 </itemize>
 
 <sect1>MPLS switching rules
@@ -650,10 +650,9 @@ include "tablename.conf";;
 	in import filters for export filtering purposes instead of locally
 	assigned BGP communities which have to be deleted in export filters.
 
-	<tag><label id="opt-router-id">router id <m/IPv4 address/</tag>
-	Set BIRD's router ID. It's a world-wide unique identification of your
-	router, usually one of router's IPv4 addresses. Default: the lowest
-	IPv4 address of a non-loopback interface.
+	<tag><label id="opt-router-id">router id <m/number/ | <m/IPv4 address/</tag>
+	Set BIRD's router ID. It's a 4-byte non-zero integer that should be unique
+	within an AS. Default: the lowest IPv4 address of the router.
 
 	<tag><label id="opt-router-id-from">router id from [-] [ "<m/mask/" ] [ <m/prefix/ ] [, <m/.../]</tag>
 	Set BIRD's router ID based on an IPv4 address of an interface specified by
@@ -766,7 +765,6 @@ to set options.
 	triggered, after a short settle time. Minimum settle time is a delay
 	from the last ROA table change to wait for more updates. Default: 1 s.
 
-
 	<tag><label id="rtable-max-settle-time">max settle time <m/time/</tag>
 	Specify a maximum value of the settle time. When a ROA table changes,
 	automatic <ref id="proto-rpki-reload" name="RPKI reload"> may be
@@ -787,8 +785,8 @@ to set options.
 	server setups, running GC on hundreds of full BGP routing tables can
 	take significant amount of time, therefore they should use higher GC
 	periods. Default: adaptive, based on number of routing tables in the
-	configuration. From 10 s (with <= 25 routing tables) up to 600 s (with
-	>= 1500 routing tables).
+	configuration. From 10 s (with &lt;= 25 routing tables) up to 600 s (with
+	&gt;= 1500 routing tables).
 </descrip>
 
 
@@ -834,9 +832,13 @@ agreement").
 	BGP protocol, <cf/states/ logs BGP state changes and <cf/messages/ logs
 	received BGP messages. Other protocols does not support MRTdump yet.
 
-	<tag><label id="proto-router-id">router id <m/IPv4 address/</tag>
+	<tag><label id="proto-router-id">router id <m/number/ | <m/IPv4 address/</tag>
 	This option can be used to override global router id for a given
 	protocol. Default: uses global router id.
+
+	<tag><label id="proto-hostname">hostname "<m/name/"</tag>
+	This option can be used to override global hostname for a given
+	protocol. Default: uses global hostname.
 
 	<tag><label id="proto-description">description "<m/text/"</tag>
 	This is an optional description of the protocol. It is displayed as a
@@ -914,7 +916,7 @@ agreement").
 	<cf>interface "eth*" 192.168.1.0/24;</cf> - start the protocol on all
 	ethernet interfaces that have address from 192.168.1.0/24.
 
-	<tag><label id="proto-tx-class">tx class|dscp <m/num/</tag>
+	<tag><label id="proto-tx-class">tx class|dscp <m/number/</tag>
 	This option specifies the value of ToS/DS/Class field in IP headers of
 	the outgoing protocol packets. This may affect how the protocol packets
 	are processed by the network relative to the other network traffic. With
@@ -923,7 +925,7 @@ agreement").
 	keyword, the value (0-63) is used just for the DS field in the octet.
 	Default value is 0xc0 (DSCP 0x30 - CS6).
 
-	<tag><label id="proto-tx-priority">tx priority <m/num/</tag>
+	<tag><label id="proto-tx-priority">tx priority <m/number/</tag>
 	This option specifies the local packet priority. This may affect how the
 	protocol packets are processed in the local TX queues. This option is
 	Linux specific. Default value is 7 (highest priority, privileged traffic).
@@ -947,7 +949,7 @@ agreement").
 <p>Password option can contain section with some (not necessary all) password sub-options:
 
 <descrip>
-	<tag><label id="proto-pass-id">id <M>num</M></tag>
+	<tag><label id="proto-pass-id">id <m>number</m></tag>
 	ID of the password, (0-255). If it is not specified, BIRD will choose ID
 	based on an order of the password item in the interface, starting from
 	1. For example, second password item in one interface will have default
@@ -957,7 +959,7 @@ agreement").
 
 	<tag><label id="proto-pass-gen-from">generate from "<m/time/"</tag>
 	The start time of the usage of the password for packet signing.
-	The format of <cf><m/time/</cf> is <tt>dd-mm-yyyy HH:MM:SS</tt>.
+	The format of <cf><m/time/</cf> is <tt>YYYY-MM-DD [hh:mm:ss[.sss]]</tt>.
 
 	<tag><label id="proto-pass-gen-to">generate to "<m/time/"</tag>
 	The last time of the usage of the password for packet signing.
@@ -1031,13 +1033,14 @@ inherited from templates can be updated by new definitions.
 
 	<tag><label id="proto-rpki-reload">rpki reload <m/switch/</tag>
 	Import or export filters may depend on route RPKI status (using
-	<cf/roa_check()/ operator). In contrast to to other filter operators,
-	this status for the same route may change as the content of ROA tables
-	changes. When this option is active, BIRD activates automatic reload of
-	affected channels whenever ROA tables are updated (after a short settle
-	time). When disabled, route reloads have to be requested manually. The
-	option is ignored if <cf/roa_check()/ is not used in channel filters.
-	Note that for BGP channels, automatic reload requires
+	<cf/roa_check()/ or <cf/aspa_check()/ operators). In contrast to other
+	filter operators, this status for the same route may change as the
+	content of ROA and ASPA tables changes. When this option is active, BIRD
+	activates automatic reload of affected channels whenever ROA and ASPA
+	tables are updated (after a short settle time). When disabled, route
+	reloads have to be requested manually. The option is ignored if neither
+	<cf/roa_check()/ nor <cf/aspa_check()/ is used in channel filters. Note
+	that for BGP channels, automatic reload requires
 	<ref id="bgp-import-table" name="import table"> or
 	<ref id="bgp-export-table" name="export table"> (for respective
 	direction). Default: on.
@@ -1219,9 +1222,11 @@ protocol bgp {
 <chapt>Remote control
 <label id="remote-control">
 
+<sect>Overview
+<label id="remote-control-overview">
+
 <p>You can use the command-line client <file>birdc</file> to talk with a running
-BIRD. Communication is done using a <file/bird.ctl/ UNIX domain socket (unless
-changed with the <tt/-s/ option given to both the server and the client). The
+BIRD. Communication is done using the appropriate UNIX domain socket. The
 commands can perform simple actions such as enabling/disabling of protocols,
 telling BIRD to show various information, telling it to show routing table
 filtered by filter, or asking BIRD to reconfigure. Press <tt/?/ at any time to
@@ -1237,10 +1242,32 @@ does not support command line editing and history and has minimal dependencies.
 This is useful for running BIRD in resource constrained environments, where
 Readline library (required for regular BIRD client) is not available.
 
-<p>Many commands have the <m/name/ of the protocol instance as an argument.
-This argument can be omitted if there exists only a single instance.
+<sect>Configuration
+<label id="remote-control-configuration">
 
-<p>Here is a brief list of supported functions:
+<p>By default, BIRD opens <file/bird.ctl/ UNIX domain socket and the CLI tool
+connects to it. If changed on the command line by the <tt/-s/ option,
+BIRD or the CLI tool connects there instead.
+
+<p>It's also possible to configure additional remote control sockets in the
+configuration file by <cf/cli "name";/ and you can open how many
+sockets you wish. There are no checks whether the user configured the same
+socket multiple times and BIRD may behave weirdly if this happens. On shutdown,
+the additional sockets get removed immediately and only the main socket stays
+until the very end.
+
+<p>The remote control socket can be also set as restricted by
+<cf/cli "name" { restrict; };/ instead of sending the <cf/restrict/ command
+after connecting. The user may still overload the daemon by requesting insanely
+complex filters so you shouldn't expose this socket to public anyway.
+
+<sect>Usage
+<label id="remote-control-usage">
+
+<p>Here is a brief list of supported functions.
+
+<p>Note: Many commands have the <m/name/ of the protocol instance as an argument.
+This argument can be omitted if there exists only a single instance.
 
 <descrip>
 	<tag><label id="cli-show-status">show status</tag>
@@ -1275,7 +1302,7 @@ This argument can be omitted if there exists only a single instance.
 	Show a topology of OSPF areas based on a content of the link-state
 	database. It is just a stripped-down version of 'show ospf state'.
 
-	<tag><label id="cli-show-ospf-lsadb">show ospf lsadb [global | area <m/id/ | link] [type <m/num/] [lsid <m/id/] [self | router <m/id/] [<m/name/] </tag>
+	<tag><label id="cli-show-ospf-lsadb">show ospf lsadb [global | area <m/id/ | link] [type <m/number/] [lsid <m/id/] [self | router <m/id/] [<m/name/] </tag>
 	Show contents of an OSPF LSA database. Options could be used to filter
 	entries.
 
@@ -1352,7 +1379,7 @@ This argument can be omitted if there exists only a single instance.
 	Dump content of a routing table to a specified file in MRT table dump
 	format. See <ref id="mrt" name="MRT protocol"> for details.
 
-	<tag><label id="cli-configure">configure [soft] ["<m/config file/"] [timeout [<m/num/]]</tag>
+	<tag><label id="cli-configure">configure [soft] ["<m/config file/"] [timeout [<m/number/]]</tag>
 	Reload configuration from a given file. BIRD will smoothly switch itself
 	to the new configuration, protocols are reconfigured if possible,
 	restarted otherwise. Changes in filters usually lead to restart of
@@ -1413,6 +1440,13 @@ This argument can be omitted if there exists only a single instance.
 	pipe protocol, both directions are always reloaded together (<cf/in/ or
 	<cf/out/ options are ignored in that case).
 
+	<tag><label id="cli-timeformat">timeformat "<m/format1/" [<m/limit/ "<m/format2/"]</tag>
+	Override format of date/time used by BIRD in this CLI session.
+
+	Meaning of "<m/format1/", <m/limit/, and "<m/format2/" is the same as in the
+	<ref id="opt-timeformat" name="timeformat"> configuration option. Also, the
+	same <cf/iso .../ shorthands may be used.
+
 	<tag><label id="cli-down">down</tag>
 	Shut BIRD down.
 
@@ -1423,8 +1457,13 @@ This argument can be omitted if there exists only a single instance.
 	<tag><label id="cli-debug">debug <m/protocol/|<m/pattern/|all all|off|{ states|routes|filters|events|packets [, <m/.../] }</tag>
 	Control protocol debugging.
 
-	<tag><label id="cli-dump">dump resources|sockets|interfaces|neighbors|attributes|routes|protocols</tag>
-	Dump contents of internal data structures to the debugging output.
+	<tag><label id="cli-dump">dump resources|sockets|ao keys|events|interfaces|neighbors|attributes|routes|protocols "<m/file/"</tag>
+	Creates the given file (it must not exist) and dumps contents of
+	internal data structures there. By sending SIGUSR1, you get all of
+	these concatenated to <cf/bird.dump/ in the current directory.
+	The file is only readable for the user running the daemon.
+	The format of dump files is internal and could change in the future
+	without any notice.
 
 	<tag><label id="cli-echo">echo all|off|{ <m/list of log classes/ } [ <m/buffer-size/ ]</tag>
 	Control echoing of log messages to the command-line output.
@@ -1472,11 +1511,11 @@ filter not_too_far
 
 <p>As you can see, a filter has a header, a list of local variables, and a body.
 The header consists of the <cf/filter/ keyword followed by a (unique) name of
-filter. The list of local variables consists of <cf><M>type name</M>;</cf>
+filter. The list of local variables consists of <cf><m>type name</m>;</cf>
 pairs where each pair declares one local variable. The body consists of <cf>
-{ <M>statements</M> }</cf>. Each <m/statement/ is terminated by a <cf/;/. You
+{ <m>statements</m> }</cf>. Each <m/statement/ is terminated by a <cf/;/. You
 can group several statements to a single compound statement by using braces
-(<cf>{ <M>statements</M> }</cf>) which is useful if you want to make a bigger
+(<cf>{ <m>statements</m> }</cf>) which is useful if you want to make a bigger
 block of code conditional.
 
 <p>BIRD supports functions, so that you don not have to repeat the same blocks
@@ -1575,9 +1614,9 @@ in the foot).
 	a shell pattern (represented also as a string).
 
 	<tag><label id="type-bytestring">bytestring</tag>
-	This is a sequences of arbitrary bytes. There are no ways to modify
-	bytestrings in filters. You can pass them between function, assign
-	them to variables of type <cf/bytestring/, print such values,
+	This is a sequence of arbitrary bytes. There are no ways to modify
+	bytestrings in filters. You can pass them between functions, assign
+	them to variables of type <cf/bytestring/, print such values, and
 	compare bytestings (<cf/=, !=/).
 
 	Bytestring literals are written as a sequence of hexadecimal digit
@@ -1597,8 +1636,8 @@ in the foot).
 	Whether the address is IPv4 or not may be checked by <cf>.is_v4</cf>
 	which returns a <cf/bool/. IP addresses are written in the standard
 	notation (<cf/10.20.30.40/ or <cf/fec0:3:4::1/). You can apply special
-	operator <cf>.mask(<M>num</M>)</cf> on values of type ip. It masks out
-	all but first <cf><M>num</M></cf> bits from the IP address. So
+	operator <cf>.mask(<m>number</m>)</cf> on values of type ip. It masks out
+	all but first <cf><m>number</m></cf> bits from the IP address. So
 	<cf/1.2.3.4.mask(8) = 1.0.0.0/ is true.
 
 	<tag><label id="type-prefix">prefix</tag>
@@ -1626,7 +1665,7 @@ in the foot).
 	Route Distinguisher (<rfc id="4364">). They support the same special
 	operators as IP prefixes, and also <cf/.rd/ which extracts the Route
 	Distinguisher. Their literals are written
-	as <cf><m/vpnrd/ <m/ipprefix/</cf>
+	as <cf><m/rd/ <m/ipprefix/</cf>
 
 	<cf/NET_ROA4/ and <cf/NET_ROA6/ prefixes hold an IP prefix range
 	together with an ASN. They support the same special operators as IP
@@ -1641,9 +1680,9 @@ in the foot).
 	<cf/NET_MPLS/ holds a single MPLS label and its handling is currently
 	not implemented.
 
-	<tag><label id="type-vpnrd">vpnrd</tag>
+	<tag><label id="type-rd"><label id="type-vpnrd">rd</tag>
 	This is a route distinguisher according to <rfc id="4364">. There are
-	three kinds of RD's: <cf><m/asn/:<m/32bit int/</cf>, <cf><m/asn4/:<m/16bit int/</cf>
+	three kinds of RDs: <cf><m/asn/:<m/32bit int/</cf>, <cf><m/asn4/:<m/16bit int/</cf>
 	and <cf><m/IPv4 address/:<m/32bit int/</cf>
 
 	<tag><label id="type-ec">ec</tag>
@@ -1670,9 +1709,9 @@ in the foot).
 	to extract corresponding components of LCs:
 	<cf>(<m/asn/, <m/data1/, <m/data2/)</cf>.
 
-	<tag><label id="type-set">int|pair|quad|ip|prefix|ec|lc|enum set</tag>
-	Filters recognize four types of sets. Sets are similar to strings: you
-	can pass them around but you can't modify them. Literals of type <cf>int
+	<tag><label id="type-set">int|pair|quad|ip|prefix|ec|lc|rd|enum set</tag>
+	Filters recognize several types of sets. Sets are similar to strings: you
+	can pass them around but you cannot modify them. Literals of type <cf>int
 	set</cf> look like <cf> [ 1, 2, 5..7 ]</cf>. As you can see, both simple
 	values and ranges are permitted in sets.
 
@@ -1695,25 +1734,24 @@ in the foot).
 	is valid, while <cf/(10, *, 20..30)/ or <cf/(10, 20..30, 40)/ is not
 	valid.
 
-	You can also use expressions for int, pair, EC and LC set values.
-	However, it must be possible to evaluate these expressions before daemon
-	boots. So you can use only constants inside them. E.g.
+	You can also use named constants or compound expressions for non-prefix
+	set values. However, it must be possible to evaluate these expressions
+	before daemon boots. So you can use only constants inside them. Also,
+	in case of compound expressions, they require parentheses around them.
+	E.g.
 
-	<code>
-	 define one=1;
-	 define myas=64500;
-	 int set odds;
-	 pair set ps;
-	 ec set es;
+<code>
+define one=1;
+define myas=64500;
 
-	 odds = [ one, 2+1, 6-one, 2*2*2-1, 9, 11 ];
-	 ps = [ (1,one+one), (3,4)..(4,8), (5,*), (6,3..6), (7..9,*) ];
-	 es = [ (rt, myas, 3*10), (rt, myas+one, 0..16*16*16-1), (ro, myas+2, *) ];
-	</code>
+int set odds = [ one, (2+1), (6-one), (2*2*2-1), 9, 11 ];
+pair set ps = [ (1,one+one), (3,4)..(4,8), (5,*), (6,3..6), (7..9,*) ];
+ec set es = [ (rt, myas, *), (rt, myas+2, 0..16*16*16-1) ];
+</code>
 
 	Sets of prefixes are special: their literals does not allow ranges, but
 	allows prefix patterns that are written
-	as <cf><M>ipaddress</M>/<M>pxlen</M>{<M>low</M>,<M>high</M>}</cf>.
+	as <cf><m>ipaddress</m>/<m>pxlen</m>{<m>low</m>,<m>high</m>}</cf>.
 	Prefix <cf><m>ip1</m>/<m>len1</m></cf> matches prefix
 	pattern <cf><m>ip2</m>/<m>len2</m>{<m>l</m>,<m>h</m>}</cf> if the
 	first <cf>min(len1, len2)</cf> bits of <cf/ip1/ and <cf/ip2/ are
@@ -1798,7 +1836,7 @@ in the foot).
 	as used by UNIX shells. Autonomous system numbers match themselves,
 	<cf/*/ matches any (even empty) sequence of arbitrary AS numbers and
 	<cf/?/ matches one arbitrary AS number. For example, if <cf>bgp_path</cf>
- 	is 4 3 2 1, then: <tt>bgp_path &tilde; [= * 4 3 * =]</tt> is true,
+	is 4 3 2 1, then: <tt>bgp_path &tilde; [= * 4 3 * =]</tt> is true,
 	but <tt>bgp_path &tilde; [= * 4 5 * =]</tt> is false. There is also
 	<cf/+/ operator which matches one or multiple instances of previous
 	expression, e.g. <tt>[= 1 2+ 3 =]</tt> matches both path 1 2 3 and path
@@ -1871,32 +1909,93 @@ in the foot).
 <label id="operators">
 
 <p>The filter language supports common integer operators <cf>(+,-,*,/)</cf>,
-parentheses <cf/(a*(b+c))/, comparison <cf/(a=b, a!=b, a&lt;b, a&gt;=b)/.
-Logical operations include unary not (<cf/!/), and (<cf/&amp;&amp;/), and or
-(<cf/&verbar;&verbar;/). Special operators include (<cf/&tilde;/,
-<cf/!&tilde;/) for "is (not) element of a set" operation - it can be used on
-element and set of elements of the same type (returning true if element is
-contained in the given set), or on two strings (returning true if first string
-matches a shell-like pattern stored in second string) or on IP and prefix
-(returning true if IP is within the range defined by that prefix), or on prefix
-and prefix (returning true if first prefix is more specific than second one) or
-on bgppath and bgpmask (returning true if the path matches the mask) or on
-number and bgppath (returning true if the number is in the path) or on bgppath
-and int (number) set (returning true if any ASN from the path is in the set) or
-on pair/quad and clist (returning true if the pair/quad is element of the
-clist) or on clist and pair/quad set (returning true if there is an element of
-the clist that is also a member of the pair/quad set).
+parentheses <cf/(a*(b+c))/, comparison <cf/(a=b, a!=b, a&lt;b, a&gt;=b)/.</p>
 
-<p>There is one operator related to ROA infrastructure - <cf/roa_check()/. It
-examines a ROA table and does <rfc id="6483"> route origin validation for a
-given network prefix. The basic usage is <cf>roa_check(<m/table/)</cf>, which
-checks the current route (which should be from BGP to have AS_PATH argument) in
-the specified ROA table and returns ROA_UNKNOWN if there is no relevant ROA,
-ROA_VALID if there is a matching ROA, or ROA_INVALID if there are some relevant
-ROAs but none of them match. There is also an extended variant
-<cf>roa_check(<m/table/, <m/prefix/, <m/asn/)</cf>, which allows to specify a
-prefix and an ASN as arguments.
+<p>Logical operations include unary not (<cf/!/), and (<cf/&amp;&amp;/), and or
+(<cf/&verbar;&verbar;/).</p>
 
+<p>Special operators include (<cf/&tilde;/, <cf/!&tilde;/) for "is (not) element
+of a set" operation - it can be used on:
+<itemize>
+  <item>element and set of elements of the same type (returning true if
+    element is contained in the given set)
+  <item>two strings (returning true if the first string matches a shell-like
+    pattern stored in the second string)
+  <item>IP and prefix (returning true if IP is within the range defined by
+    that prefix)
+  <item>prefix and prefix (returning true if the first prefix is more specific
+    than the second one)
+  <item>bgppath and bgpmask (returning true if the path matches the mask)
+  <item>number and bgppath (returning true if the number is in the path)
+  <item>bgppath and int (number) set (returning true if any ASN from the
+    path is in the set)
+  <item>pair/quad and clist (returning true if the pair/quad is element of
+    the clist)
+  <item>clist and pair/quad set (returning true if there is an element of the
+    clist that is also a member of the pair/quad set).
+</itemize>
+
+<p>There are also operators related to RPKI infrastructure used to run
+<rfc id="6483"> route origin validation and (draft) AS path validation.
+
+<itemize>
+  <item><cf>roa_check(<m/table/)</cf> checks the current route in the specified
+  ROA table and returns <cf>ROA_UNKNOWN</cf>, <cf>ROA_INVALID</cf> or <cf>ROA_VALID</cf>,
+  if the validation result is unknown, invalid, or valid, respectively. The result is
+  valid if there is a matching ROA, it is invalid if there is either matching ROA
+  with a different ASN, or any covering ROA with shorter maximal prefix length.
+
+  <item><cf>roa_check(<m/table/, <m/prefix/, <m/asn/)</cf> is an explicit version
+  of the ROA check if the user for whatever reason needs to check a different prefix
+  or different ASN than the default one. The equivalent call of the short variant
+  is <cf>roa_check(<m/table/, net, bgp_path.last)</cf> and it is faster
+  to call the short variant.
+
+  <item><cf>aspa_check_downstream(<m/table/)</cf> checks the current route
+  in the specified ASPA table and returns <cf>ASPA_UNKNOWN</cf>, <cf>ASPA_INVALID</cf>,
+  or <cf>ASPA_VALID</cf> if the validation result is unknown, invalid, or valid,
+  respectively. The result is valid if there is a full coverage of matching
+  ASPA records according to the Algorithm for Downstream Paths by the (draft).
+  This operator is not present if BGP is not compiled in.
+
+  <item><cf>aspa_check_upstream(<m/table/)</cf> checks the current route
+  in the specified ASPA table as the former operator, but it applies the
+  (stricter) Algorithm for Upstream Paths by the (draft).
+  This operator is not present if BGP is not compiled in.
+
+  <item><cf>aspa_check(<m/table/, <m/path/, <m/is_upstream/)</cf> is
+  an explicit version of the former two ASPA check operators. The equivalent
+  of <cf>aspa_check_downstream</cf> is <cf>aspa_check(<m/table/, bgp_path, false)</cf>
+  and for <cf>aspa_check_upstream</cf> it is
+  <cf>aspa_check(<m/table/, bgp_path, true)</cf>.
+  Note: the ASPA check does not include the local ASN in the AS path.
+  Also, <cf>ASPA_INVALID</cf> is returned for an empty AS path
+  or for AS path containing <cf>CONFED_SET</cf> or <cf>CONFED_SEQUENCE</cf> blocks,
+  as the (draft) stipulates.
+</itemize>
+
+<p>The following example checks for ROA and ASPA on routes from a customer:
+
+<code>
+roa6 table r6;
+aspa table at;
+attribute int valid_roa;
+attribute int valid_aspa;
+
+filter customer_check {
+  case roa_check(r6) {
+    ROA_INVALID: reject "Invalid ROA";
+    ROA_VALID: valid_roa = 1;
+  }
+
+  case aspa_check_upstream(at) {
+    ASPA_INVALID: reject "Invalid ASPA";
+    ASPA_VALID: valid_aspa = 1;
+  }
+
+  accept;
+}
+</code>
 
 <sect>Control structures
 <label id="control-structures">
@@ -1904,9 +2003,9 @@ prefix and an ASN as arguments.
 <p>Filters support several control structures: conditions, for loops and case
 switches.
 
-<p>Syntax of a condition is: <cf>if <M>boolean expression</M> then <m/commandT/;
+<p>Syntax of a condition is: <cf>if <m>boolean expression</m> then <m/commandT/;
 else <m/commandF/;</cf> and you can use <cf>{ <m/command1/; <m/command2/;
-<M>...</M> }</cf> instead of either command. The <cf>else</cf> clause may be
+<m>...</m> }</cf> instead of either command. The <cf>else</cf> clause may be
 omitted. If the <cf><m>boolean expression</m></cf> is true, <m/commandT/ is
 executed, otherwise <m/commandF/ is executed.
 
@@ -1919,13 +2018,15 @@ may be an existing one (when just name is used) or a locally defined (when type
 and name is used). In both cases, it must have the same type as elements.
 
 <p>The <cf>case</cf> is similar to case from Pascal. Syntax is <cf>case
-<m/expr/ { else: | <m/num_or_prefix [ .. num_or_prefix]/: <m/statement/ ; [
-... ] }</cf>. The expression after <cf>case</cf> can be of any type which can be
-on the left side of the &tilde; operator and anything that could be a member of
-a set is allowed before <cf/:/. Multiple commands are allowed without <cf/{}/
-grouping. If <cf><m/expr/</cf> matches one of the <cf/:/ clauses, statements
-between it and next <cf/:/ statement are executed. If <cf><m/expr/</cf> matches
-neither of the <cf/:/ clauses, the statements after <cf/else:/ are executed.
+<m/expr/ { else: | <m/set_body_expr/ /: <m/statement/ ; [... ] }</cf>.
+The expression after <cf>case</cf> can be of any type that could be a member of
+a set, while the <m/set_body_expr/ before <cf/:/ can be anything (constants,
+intervals, expressions) that could be a part of a set literal. One exception is
+prefix type, which can be used in sets bud not in <cf/case/ structure. Multiple
+commands are allowed without <cf/{}/ grouping. If <cf><m/expr/</cf> matches one
+of the <cf/:/ clauses, statements between it and next <cf/:/ statement are
+executed. If <cf><m/expr/</cf> matches neither of the <cf/:/ clauses, the
+statements after <cf/else:/ are executed.
 
 <p>Here is example that uses <cf/if/ and <cf/case/ structures:
 
@@ -2133,8 +2234,8 @@ protocol sections.
 	<tag><label id="aggregator-rule">aggregate on <m/expr/ | <m/attribute/ [<m/, .../]</tag>
 	All the given filter expressions and route attributes are evaluated for each route. Then routes
 	are sorted into buckets where <em/all/ values are the same. Note: due to performance reasons,
-        all filter expressions must return a compact type, e.g. integer, a BGP
-        (standard, extended, large) community or an IP address. If you need to compare e.g. modified
+	all filter expressions must return a compact type, e.g. integer, a BGP
+	(standard, extended, large) community or an IP address. If you need to compare e.g. modified
 	AS Paths in the aggregation rule, you can define a custom route attribute and set this attribute
 	in the export filter. For now, it's mandatory to say <cf/net/ here, we can't merge prefixes yet.
 
@@ -2209,9 +2310,9 @@ supports the following per-interface configuration options:
 protocol babel [<name>] {
 	ipv4 { <channel config> };
 	ipv6 [sadr] { <channel config> };
-        randomize router id <switch>;
+	randomize router id <switch>;
 	interface <interface pattern> {
-		type <wired|wireless|tunnel>;
+		type wired|wireless|tunnel;
 		rxcost <number>;
 		limit <number>;
 		hello interval <time>;
@@ -2224,6 +2325,7 @@ protocol babel [<name>] {
 		check link <switch>;
 		next hop ipv4 <address>;
 		next hop ipv6 <address>;
+		next hop prefer native|ipv6;
 		extended next hop <switch>;
 		rtt cost <number>;
 		rtt min <time>;
@@ -2231,15 +2333,15 @@ protocol babel [<name>] {
 		rtt decay <number>;
 		send timestamps <switch>;
 		authentication none|mac [permissive];
-		password "&lt;text&gt;";
-		password "&lt;text&gt;" {
-			id &lt;num&gt;;
-			generate from "&lt;date&gt;";
-			generate to "&lt;date&gt;";
-			accept from "&lt;date&gt;";
-			accept to "&lt;date&gt;";
-			from "&lt;date&gt;";
-			to "&lt;date&gt;";
+		password "<text>";
+		password "<text>" {
+			id <number>;
+			generate from "<date>";
+			generate to "<date>";
+			accept from "<date>";
+			accept to "<date>";
+			from "<date>";
+			to "<date>";
 			algorithm ( hmac sha1 | hmac sha256 | hmac sha384 |
 	hmac sha512 | blake2s128 | blake2s256 | blake2b256 | blake2b512 );
 		};
@@ -2271,7 +2373,7 @@ protocol babel [<name>] {
       wired interface, but turns on RTT-based metrics with a default cost of 96.
       Default: <cf/wired/.
 
-      <tag><label id="babel-rxcost">rxcost <m/num/</tag>
+      <tag><label id="babel-rxcost">rxcost <m/number/</tag>
       This option specifies the nominal RX cost of the interface. The effective
       neighbor costs for route metrics will be computed from this value with a
       mechanism determined by the interface <cf/type/. Note that in contrast to
@@ -2280,7 +2382,7 @@ protocol babel [<name>] {
       selection and not local route selection. Default: 96 for wired interfaces,
       256 for wireless.
 
-      <tag><label id="babel-limit">limit <m/num/</tag>
+      <tag><label id="babel-limit">limit <m/number/</tag>
       BIRD keeps track of received Hello messages from each neighbor to
       establish neighbor reachability. For wired type interfaces, this option
       specifies how many of last 16 hellos have to be correctly received in
@@ -2326,19 +2428,28 @@ protocol babel [<name>] {
       yes.
 
       <tag><label id="babel-next-hop-ipv4">next hop ipv4 <m/address/</tag>
-      Set the next hop address advertised for IPv4 routes advertised on this
-      interface. Default: the preferred IPv4 address of the interface.
+      Set the IPv4 next hop address advertised for (IPv4) routes advertised on
+      this interface. Default: the preferred IPv4 address of the interface.
 
       <tag><label id="babel-next-hop-ipv6">next hop ipv6 <m/address/</tag>
-      Set the next hop address advertised for IPv6 routes advertised on this
+      Set the IPv6 next hop address advertised for routes advertised on this
       interface. If not set, the same link-local address that is used as the
       source for Babel packets will be used. In normal operation, it should not
       be necessary to set this option.
 
+      <tag><label id="babel-next-hop-prefer">next hop prefer native|ipv6</tag>
+      By default, BIRD prefers to advertise IPv4 routes with an IPv4 next hop
+      address, using an IPv6 next hop address only when IPv4 addresses are
+      absent from the interface. When set to <cf/ipv6/, BIRD will advertise IPv4
+      routes with an IPv6 next hop address even when IPv4 addresses are present
+      on the interface (assuming the option <ref id="babel-extended-next-hop"
+      name="extended next hop"> is enabled). Default: native.
+
       <tag><label id="babel-extended-next-hop">extended next hop <m/switch/</tag>
-      If enabled, BIRD will accept and emit IPv4 routes with an IPv6 next
-      hop when IPv4 addresses are absent from the interface as described in
-      <rfc id="9229">. Default: yes.
+      Specify whether BIRD should allow IPv4 routes with an IPv6 next hop, as
+      described in <rfc id="9229">. Note that when both IPv4 and IPv6 next hops
+      are available, the option <ref id="babel-next-hop-prefer"
+      name="next hop prefer"> controls which one is advertised. Default: yes.
 
       <tag><label id="babel-rtt-cost">rtt cost <m/number/</tag>
       The RTT-based cost that will be applied to all routes from each neighbour
@@ -2457,9 +2568,9 @@ protocols are notified and act accordingly (e.g. break an OSPF adjacency when
 the BFD session went down).
 
 <p>BIRD implements basic BFD behavior as defined in <rfc id="5880"> (some
-advanced features like the echo mode or authentication are not implemented), IP
-transport for BFD as defined in <rfc id="5881"> and <rfc id="5883"> and
-interaction with client protocols as defined in <rfc id="5882">.
+advanced features like the echo mode are not implemented), IP transport for BFD
+as defined in <rfc id="5881"> and <rfc id="5883"> and interaction with client
+protocols as defined in <rfc id="5882">.
 
 <p>BFD packets are sent with a dynamic source port number. Linux systems use by
 default a bit different dynamic port range than the IANA approved one
@@ -2492,43 +2603,45 @@ Each BFD instance associated with a VRF (regular or default) only handles
 session requests from protocols in the same VRF.
 
 <p>Some of BFD session options require <m/time/ value, which has to be specified
-with the appropriate unit: <m/num/ <cf/s/|<cf/ms/|<cf/us/. Although microseconds
+with the appropriate unit: <m/number/ <cf/s/|<cf/ms/|<cf/us/. Although microseconds
 are allowed as units, practical minimum values are usually in order of tens of
 milliseconds.
 
 <code>
-protocol bfd [&lt;name&gt;] {
+protocol bfd [<name>] {
 	accept [ipv4|ipv6] [direct|multihop];
-	interface &lt;interface pattern&gt; {
-		interval &lt;time&gt;;
-		min rx interval &lt;time&gt;;
-		min tx interval &lt;time&gt;;
-		idle tx interval &lt;time&gt;;
-		multiplier &lt;num&gt;;
-		passive &lt;switch&gt;;
+	strict bind <switch>;
+	zero udp6 checksum rx <switch>;
+	interface <interface pattern> {
+		interval <time>;
+		min rx interval <time>;
+		min tx interval <time>;
+		idle tx interval <time>;
+		multiplier <number>;
+		passive <switch>;
 		authentication none;
 		authentication simple;
 		authentication [meticulous] keyed md5|sha1;
-		password "&lt;text&gt;";
-		password "&lt;text&gt;" {
-			id &lt;num&gt;;
-			generate from "&lt;date&gt;";
-			generate to "&lt;date&gt;";
-			accept from "&lt;date&gt;";
-			accept to "&lt;date&gt;";
-			from "&lt;date&gt;";
-			to "&lt;date&gt;";
+		password "<text>";
+		password "<text>" {
+			id <number>;
+			generate from "<date>";
+			generate to "<date>";
+			accept from "<date>";
+			accept to "<date>";
+			from "<date>";
+			to "<date>";
 		};
 	};
 	multihop {
-		interval &lt;time&gt;;
-		min rx interval &lt;time&gt;;
-		min tx interval &lt;time&gt;;
-		idle tx interval &lt;time&gt;;
-		multiplier &lt;num&gt;;
-		passive &lt;switch&gt;;
+		interval <time>;
+		min rx interval <time>;
+		min tx interval <time>;
+		idle tx interval <time>;
+		multiplier <number>;
+		passive <switch>;
 	};
-	neighbor &lt;ip&gt; [dev "&lt;interface&gt;"] [local &lt;ip&gt;] [multihop &lt;switch&gt;];
+	neighbor <ip> [dev "<interface>"] [local <ip>] [multihop <switch>];
 }
 </code>
 
@@ -2547,6 +2660,14 @@ protocol bfd [&lt;name&gt;] {
 	accepting all addresses. Binding to a specific address could be useful
 	in cases like running multiple BIRD instances on a machine, each
 	handling a different set of interfaces. Default: disabled.
+
+	<tag><label id="bfd-zero-udp6-checksum-rx">zero udp6 checksum rx <m/switch/</tag>
+	UDP checksum computation is optional in IPv4 while it is mandatory in
+	IPv6. Some BFD implementations send UDP datagrams with zero (blank)
+	checksum even in IPv6 case. This option configures BFD listening sockets
+	to accept such datagrams. It is available only on platforms that support
+	the relevant socket option (e.g. <cf/UDP_NO_CHECK6_RX/ on Linux).
+	Default: disabled.
 
 	<tag><label id="bfd-iface">interface <m/pattern/ [, <m/.../] { <m/options/ }</tag>
 	Interface definitions allow to specify options for sessions associated
@@ -2604,7 +2725,7 @@ protocol bfd [&lt;name&gt;] {
 	desired TX interval in such cases instead of <cf/min tx interval/.
 	Default: 1 s.
 
-	<tag><label id="bfd-multiplier">multiplier <m/num/</tag>
+	<tag><label id="bfd-multiplier">multiplier <m/number/</tag>
 	Failure detection time for BFD sessions is based on established rate of
 	BFD control packets (<cf>min rx/tx interval</cf>) multiplied by this
 	multiplier, which is essentially (ignoring jitter) a number of missed
@@ -2618,14 +2739,14 @@ protocol bfd [&lt;name&gt;] {
 	passive mode, which means that the router does not send BFD packets
 	until it has received one from the other side. Default: disabled.
 
-	<tag>authentication none</tag>
+	<tag><label id="bfd-authentication-none">authentication none</tag>
 	No passwords are sent in BFD packets. This is the default value.
 
-	<tag>authentication simple</tag>
+	<tag><label id="bfd-authentication-simple">authentication simple</tag>
 	Every packet carries 16 bytes of password. Received packets lacking this
 	password are ignored. This authentication mechanism is very weak.
 
-	<tag>authentication [meticulous] keyed md5|sha1</tag>
+	<tag><label id="bfd-authentication-keyed">authentication [meticulous] keyed md5|sha1</tag>
 	An authentication code is appended to each packet. The cryptographic
 	algorithm is keyed MD5 or keyed SHA-1. Note that the algorithm is common
 	for all keys (on one interface), in contrast to OSPF or RIP, where it
@@ -2637,7 +2758,7 @@ protocol bfd [&lt;name&gt;] {
 	offers better resistance to replay attacks but may require more
 	computation.
 
-	<tag>password "<M>text</M>"</tag>
+	<tag><label id="bfd-password">password "<m>text</m>"</tag>
 	Specifies a password used for authentication. See <ref id="proto-pass"
 	name="password"> common option for detailed description. Note that
 	password option <cf/algorithm/ is not available in BFD protocol. The
@@ -2701,41 +2822,45 @@ avoid routing loops.
 
 <p>
 <itemize>
-<item> <rfc id="4271"> - Border Gateway Protocol 4 (BGP)
-<item> <rfc id="1997"> - BGP Communities Attribute
-<item> <rfc id="2385"> - Protection of BGP Sessions via TCP MD5 Signature
-<item> <rfc id="2545"> - Use of BGP Multiprotocol Extensions for IPv6
-<item> <rfc id="2918"> - Route Refresh Capability
-<item> <rfc id="3107"> - Carrying Label Information in BGP
-<item> <rfc id="4360"> - BGP Extended Communities Attribute
-<item> <rfc id="4364"> - BGP/MPLS IPv4 Virtual Private Networks
-<item> <rfc id="4456"> - BGP Route Reflection
-<item> <rfc id="4486"> - Subcodes for BGP Cease Notification Message
-<item> <rfc id="4659"> - BGP/MPLS IPv6 Virtual Private Networks
-<item> <rfc id="4724"> - Graceful Restart Mechanism for BGP
-<item> <rfc id="4760"> - Multiprotocol extensions for BGP
-<item> <rfc id="4798"> - Connecting IPv6 Islands over IPv4 MPLS
-<item> <rfc id="5065"> - AS confederations for BGP
-<item> <rfc id="5082"> - Generalized TTL Security Mechanism
-<item> <rfc id="5492"> - Capabilities Advertisement with BGP
-<item> <rfc id="5575"> - Dissemination of Flow Specification Rules
-<item> <rfc id="5668"> - 4-Octet AS Specific BGP Extended Community
-<item> <rfc id="6286"> - AS-Wide Unique BGP Identifier
-<item> <rfc id="6608"> - Subcodes for BGP Finite State Machine Error
-<item> <rfc id="6793"> - BGP Support for 4-Octet AS Numbers
-<item> <rfc id="7311"> - Accumulated IGP Metric Attribute for BGP
-<item> <rfc id="7313"> - Enhanced Route Refresh Capability for BGP
-<item> <rfc id="7606"> - Revised Error Handling for BGP UPDATE Messages
-<item> <rfc id="7911"> - Advertisement of Multiple Paths in BGP
-<item> <rfc id="7947"> - Internet Exchange BGP Route Server
-<item> <rfc id="8092"> - BGP Large Communities Attribute
-<item> <rfc id="8203"> - BGP Administrative Shutdown Communication
-<item> <rfc id="8212"> - Default EBGP Route Propagation Behavior without Policies
-<item> <rfc id="8654"> - Extended Message Support for BGP
-<item> <rfc id="8950"> - Advertising IPv4 NLRI with an IPv6 Next Hop
-<item> <rfc id="9072"> - Extended Optional Parameters Length for BGP OPEN Message
-<item> <rfc id="9117"> - Revised Validation Procedure for BGP Flow Specifications
-<item> <rfc id="9234"> - Route Leak Prevention and Detection Using Roles
+<item> <rfc id="4271"> &ndash; Border Gateway Protocol 4 (BGP)
+<item> <rfc id="1997"> &ndash; BGP Communities Attribute
+<item> <rfc id="2385"> &ndash; Protection of BGP Sessions via TCP MD5 Signature
+<item> <rfc id="2545"> &ndash; Use of BGP Multiprotocol Extensions for IPv6
+<item> <rfc id="2918"> &ndash; Route Refresh Capability
+<item> <rfc id="3107"> &ndash; Carrying Label Information in BGP
+<item> <rfc id="4360"> &ndash; BGP Extended Communities Attribute
+<item> <rfc id="4364"> &ndash; BGP/MPLS IPv4 Virtual Private Networks
+<item> <rfc id="4456"> &ndash; BGP Route Reflection
+<item> <rfc id="4486"> &ndash; Subcodes for BGP Cease Notification Message
+<item> <rfc id="4659"> &ndash; BGP/MPLS IPv6 Virtual Private Networks
+<item> <rfc id="4724"> &ndash; Graceful Restart Mechanism for BGP
+<item> <rfc id="4760"> &ndash; Multiprotocol extensions for BGP
+<item> <rfc id="4798"> &ndash; Connecting IPv6 Islands over IPv4 MPLS
+<item> <rfc id="5065"> &ndash; AS confederations for BGP
+<item> <rfc id="5082"> &ndash; Generalized TTL Security Mechanism
+<item> <rfc id="5492"> &ndash; Capabilities Advertisement with BGP
+<item> <rfc id="8955"> &ndash; Dissemination of Flow Specification Rules for IPv4
+<item> <rfc id="8956"> &ndash; Dissemination of Flow Specification Rules for IPv6
+<item> <rfc id="5668"> &ndash; 4-Octet AS Specific BGP Extended Community
+<item> <rfc id="5925"> &ndash; TCP Authentication Option
+<item> <rfc id="6286"> &ndash; AS-Wide Unique BGP Identifier
+<item> <rfc id="6608"> &ndash; Subcodes for BGP Finite State Machine Error
+<item> <rfc id="6793"> &ndash; BGP Support for 4-Octet AS Numbers
+<item> <rfc id="7311"> &ndash; Accumulated IGP Metric Attribute for BGP
+<item> <rfc id="7313"> &ndash; Enhanced Route Refresh Capability for BGP
+<item> <rfc id="7606"> &ndash; Revised Error Handling for BGP UPDATE Messages
+<item> <rfc id="7911"> &ndash; Advertisement of Multiple Paths in BGP
+<item> <rfc id="7947"> &ndash; Internet Exchange BGP Route Server
+<item> <rfc id="8092"> &ndash; BGP Large Communities Attribute
+<item> <rfc id="8212"> &ndash; Default EBGP Route Propagation Behavior without Policies
+<item> <rfc id="8654"> &ndash; Extended Message Support for BGP
+<item> <rfc id="8950"> &ndash; Advertising IPv4 NLRI with an IPv6 Next Hop
+<item> <rfc id="9003"> &ndash; Extended BGP Administrative Shutdown Communication
+<item> <rfc id="9072"> &ndash; Extended Optional Parameters Length for BGP OPEN Message
+<item> <rfc id="9117"> &ndash; Revised Validation Procedure for BGP Flow Specifications
+<item> <rfc id="9234"> &ndash; Route Leak Prevention and Detection Using Roles
+<item> <rfc id="9494"> &ndash; Long-Lived Graceful Restart for BGP
+<item> <rfc id="9687"> &ndash; Send Hold Timer
 </itemize>
 
 <sect1>Route selection rules
@@ -2776,6 +2901,121 @@ usually one routing table used for both IGP routes and BGP routes.
 to set routing policy and all the other parameters differently for each neighbor
 using the following configuration parameters:
 
+<code>
+protocol bgp [<name>] {
+	ipv4|ipv6|... {
+		<channel-options>
+		mandatory <switch>;
+		next hop keep <switch>|ibgp|ebgp;
+		next hop self <switch>|ibgp|ebgp;
+		next hop address <ip>;
+		next hop prefer global;
+		link local next hop format native|single|double;
+		gateway direct|recursive;
+		igp table <name>;
+		import table <switch>;
+		export table <switch>;
+		secondary <switch>;
+		validate <switch>;
+		base table <name>;
+		extended next hop <switch>;
+		require extended next hop <switch>;
+		add paths <switch>|rx|tx;
+		require add paths <switch>;
+		aigp <switch>|originate;
+		cost <number>;
+		graceful restart <switch>;
+		long lived graceful restart <switch>;
+		long lived stale time <number>;
+		min long lived stale time <number>;
+		max long lived stale time <number>;
+	};
+	local [<ip>] [port <number>] [as <number>];
+	neighbor [<ip> | range <prefix>] [port <number>] [as <number>] [internal|external];
+	interface "<text>";
+	direct;
+	multihop [<number>];
+	source address <ip>;
+	dynamic name "<text>";
+	dynamic name digits <number>;
+	strict bind <switch>;
+	free bind <switch>;
+	check link <switch>;
+	bfd <switch>|graceful| { <bfd-options> };
+	ttl security <switch>;
+	authentication none|md5|ao;
+	password "<text>";
+	keys {
+		key {
+			id <number>;
+			send id <number>;
+			recv id <number>;
+			secret "<text>"|<bytestring>;
+			algorithm ( hmac md5 | hmac sha1 | hmac sha224 | hmac sha256 |
+				    hmac sha384 | hmac sha512 | cmac aes128 );
+			preferred;
+			deprecated;
+		};
+		...
+	};
+	setkey <switch>;
+	passive <switch>;
+	confederation <number>;
+	confederation member <switch>;
+	rr client <switch>;
+	rr cluster id <number>|<IPv4 address>;
+	rs client <switch>;
+	allow bgp_local_pref <switch>;
+	allow bgp_med <switch>;
+	allow local as [<number>];
+	allow as sets <switch>;
+	enforce first as <switch>;
+	enable route refresh <switch>;
+	require route refresh <switch>;
+	enable enhanced route refresh <switch>;
+	require enhanced route refresh <switch>;
+	graceful restart <switch>|aware;
+	graceful restart time <number>;
+	min graceful restart time <number>;
+	max graceful restart time <number>;
+	require graceful restart <switch>;
+	long lived graceful restart <switch>|aware;
+	long lived stale time <number>;
+	min long lived stale time <number>;
+	max long lived stale time <number>;
+	require long lived graceful restart <switch>;
+	interpret communities <switch>;
+	enable as4 <switch>;
+	require as4 <switch>;
+	enable extended messages <switch>;
+	require extended messages <switch>;
+	capabilities <switch>;
+	advertise hostname <switch>;
+	require hostname <switch>;
+	disable after error <switch>;
+	disable after cease <switch>|<set-of-flags>;
+	hold time <number>;
+	min hold time <number>;
+	startup hold time <number>;
+	keepalive time <number>;
+	min keepalive time <number>;
+	send hold time <number>;
+	connect delay time <number>;
+	connect retry time <number>;
+	error wait time <number>, <number>;
+	error forget time <number>;
+	path metric <switch>;
+	med metric <switch>;
+	deterministic med <switch>;
+	igp metric <switch>;
+	prefer older <switch>;
+	default bgp_med <number>;
+	default bgp_local_pref <number>;
+	local role <role-name>;
+	require roles <switch>;
+}
+</code>
+
 <descrip>
 	<tag><label id="bgp-local">local [<m/ip/] [port <m/number/] [as <m/number/]</tag>
 	Define which AS we are part of. (Note that contrary to other IP routers,
@@ -2807,7 +3047,7 @@ using the following configuration parameters:
 	with dynamic BGP instances and have multiple dynamic BGP instances with
 	different ranges.
 
-	<tag><label id="bgp-iface">interface <m/string/</tag>
+	<tag><label id="bgp-iface">interface "<m/text/"</tag>
 	Define interface we should use for link-local BGP IPv6 sessions.
 	Interface can also be specified as a part of <cf/neighbor address/
 	(e.g., <cf/neighbor fe80::1234%eth0 as 65000;/). The option may also be
@@ -2864,14 +3104,14 @@ using the following configuration parameters:
 	all BGP instances that share a listening socket should have the same
 	value of the <cf/freebind/ option. Default: disabled.
 
-	<tag><label id="bgp-check-link">check link <M>switch</M></tag>
+	<tag><label id="bgp-check-link">check link <m>switch</m></tag>
 	BGP could use hardware link state into consideration.  If enabled,
 	BIRD tracks the link state of the associated interface and when link
 	disappears (e.g. an ethernet cable is unplugged), the BGP session is
 	immediately shut down. Note that this option cannot be used with
 	multihop BGP. Default: enabled for direct BGP, disabled otherwise.
 
-	<tag><label id="bgp-bfd">bfd <M>switch</M>|graceful| { <m/options/ }</tag>
+	<tag><label id="bgp-bfd">bfd <m>switch</m>|graceful| { <m/options/ }</tag>
 	BGP could use BFD protocol as an advisory mechanism for neighbor
 	liveness and failure detection. If enabled, BIRD setups a BFD session
 	for the BGP neighbor and tracks its liveness by it. This has an
@@ -2880,10 +3120,9 @@ using the following configuration parameters:
 	restarted. Optionally, it can be configured (by <cf/graceful/ argument)
 	to trigger graceful restart instead of regular restart. It is also
 	possible to specify section with per-peer BFD session options instead of
-	just switch argument. Most BFD session specific options are allowed here
-	with the exception of authentication options. here Note that BFD
-	protocol also has to be configured, see <ref id="bfd" name="BFD">
-	section for details. Default: disabled.
+	just the switch argument. All BFD session-specific options are allowed
+	here. Note that BFD protocol also has to be configured, see
+	<ref id="bfd" name="BFD"> section for details. Default: disabled.
 
 	<tag><label id="bgp-ttl-security">ttl security <m/switch/</tag>
 	Use GTSM (<rfc id="5082"> - the generalized TTL security mechanism). GTSM
@@ -2896,7 +3135,18 @@ using the following configuration parameters:
 	Note that full (ICMP protection, for example) <rfc id="5082"> support is
 	provided by Linux only. Default: disabled.
 
-	<tag><label id="bgp-password">password <m/string/</tag>
+	<tag><label id="bgp-authentication">authentication none|md5|ao</tag>
+	Selects authentication method to be used. <cf/none/ means that the BGP
+	session is not authenticated at all. <cf/md5/ means that the TCP MD5
+	authentication of BGP sessions (<rfc id="2385">) is used, in that case
+	the option <ref id="bgp-password" name="password"> is used to specify
+	the (single) password. Finally, <cf/ao/ means to use TCP Authentication
+	Option (TCP-AO, <rfc id="5925">), allowing multiple keys and different
+	cryptographic algorithms. These are specified using the option
+	<ref id="bgp-keys" name="keys">. Note that TCP-AO authentication is not
+	supported on dynamic BGP sessions. Default: none.
+
+	<tag><label id="bgp-password">password "<m/text/"</tag>
 	Use this password for MD5 authentication of BGP sessions (<rfc id="2385">). When
 	used on BSD systems, see also <cf/setkey/ option below. Default: no
 	authentication.
@@ -2911,6 +3161,54 @@ using the following configuration parameters:
 	updates are currently implemented only for FreeBSD. Passwords have to be
 	set manually by an external utility on NetBSD and OpenBSD. Default:
 	enabled (ignored on non-FreeBSD).
+
+	<tag><label id="bgp-keys">keys { key { [<m/.../] }; [<m/.../] }</tag>
+	Define a set of cryptographic keys that are used for TCP-AO
+	authentication of BGP sessions (<rfc id="5925">). Each key has a
+	configuration block with its own sub-options ([<cf/send/ | <cf/recv/]
+	<cf/id/, <cf/secret/, <cf/algorithm/, <cf/preferred/, <cf/deprecated/).
+
+	TCP-AO key has two IDs - for outgoing and incoming direction (Send /
+	Recv ID). Among keys on one protocol all Send IDs must be unique and all
+	Recv IDs must be unique. They must be in range 0-255 and they can be set
+	independently with key options <cf/send id/ and <cf/recv id/, or
+	together with option <cf/id/. Note that specifying these IDs is
+	mandatory.
+
+	Of course, TCP-AO key contains a shared secret key. It is specified by
+	the option <cf/secret/ as a text string or as a sequence of hexadecimal
+	digit pairs (<ref id="type-bytestring" name="bytestring">).
+
+	Used cryptographic algorithm can be specified for each key with the
+	option <cf/algorithm/. Possible values are: <cf/hmac md5/, <cf/hmac sha1/,
+	<cf/hmac sha224/, <cf/hmac sha256/, <cf/hmac sha384/, <cf/hmac sha512/,
+	and <cf/cmac aes128/. Default value is <cf/hmac sha1/.
+
+	When multiple keys are available, BIRD selects one to advertise as RNext
+	key (the key it prefers to be used to sign incoming traffic). Keys
+	marked as <cf/preferred/ are selected before unmarked keys, while keys
+	marked as <cf/deprecated/ are never selected (but still could be used
+	when the other side asks for them). Therefore, there must be always at
+	least one non-deprecated key.
+
+	Currently, only the selected key is used during the initial handshake of
+	session establishment (and therefore must be known by the other side).
+	This may change in the future.
+
+	It is possible to add, remove, or modify keys during reconfiguration
+	without breaking the BGP session. The recommended way is to refrain from
+	removing a key that is in active use (as reported by <cf/Current key/
+	and <cf/RNext key/ in <cf/show protocols all/), instead marking the key
+	as <cf/deprecated/ on both sides of the session. It is possible to
+	remove an active key directly, BIRD would forcibly switch to another key
+	(as long as there is a non-deprecated key that is not added, removed or
+	modified during this reconfiguration). This is not recommended as it
+	skips the proper key change mechanism and may switch to a key that is
+	not available to the other side.
+
+	Modification of existing keys (except of marking them <cf/preferred/ or
+	<cf/deprecated/) is equivalent to removing and then adding them, with
+	the same issues related to removing of active keys.
 
 	<tag><label id="bgp-passive">passive <m/switch/</tag>
 	Standard BGP behavior is both initiating outgoing connections and
@@ -2932,11 +3230,11 @@ using the following configuration parameters:
 	speaker. The option is unnecessary (and ignored) for IBGP sessions, as
 	the same AS number implies the same confederation. Default: no.
 
-	<tag><label id="bgp-rr-client">rr client</tag>
+	<tag><label id="bgp-rr-client">rr client <m/switch/</tag>
 	Be a route reflector and treat the neighbor as a route reflection
 	client. Default: disabled.
 
-	<tag><label id="bgp-rr-cluster-id">rr cluster id <m/IPv4 address/</tag>
+	<tag><label id="bgp-rr-cluster-id">rr cluster id <m/number/ | <m/IPv4 address/</tag>
 	Route reflectors use cluster id to avoid route reflection loops. When
 	there is one route reflector in a cluster it usually uses its router id
 	as a cluster id, but when there are more route reflectors in a cluster,
@@ -2944,7 +3242,7 @@ using the following configuration parameters:
 	id. Clients in a cluster need not know their cluster id and this option
 	is not allowed for them. Default: the same as router id.
 
-	<tag><label id="bgp-rs-client">rs client</tag>
+	<tag><label id="bgp-rs-client">rs client <m/switch/</tag>
 	Be a route server and treat the neighbor as a route server client.
 	A route server is used as a replacement for full mesh EBGP routing in
 	Internet exchange points in a similar way to route reflectors used in
@@ -2978,7 +3276,7 @@ using the following configuration parameters:
 	completely disabled and you should ensure loop-free behavior by some
 	other means. Default: 0 (no local AS number allowed).
 
-	<tag><label id="bgp-allow-as-sets">allow as sets [<m/switch/]</tag>
+	<tag><label id="bgp-allow-as-sets">allow as sets <m/switch/</tag>
 	AS path attribute received with BGP routes may contain not only
 	sequences of AS numbers, but also sets of AS numbers. These rarely used
 	artifacts are results of inter-AS route aggregation. AS sets are
@@ -2988,7 +3286,7 @@ using the following configuration parameters:
 	malformed and corresponding BGP updates are treated as withdraws.
 	Default: on.
 
-	<tag><label id="bgp-enforce-first-as">enforce first as [<m/switch/]</tag>
+	<tag><label id="bgp-enforce-first-as">enforce first as <m/switch/</tag>
 	Routes received from an EBGP neighbor are generally expected to have the
 	first (leftmost) AS number in their AS path equal to the neighbor AS
 	number. This is not enforced by default as there are legitimate cases
@@ -3046,6 +3344,16 @@ using the following configuration parameters:
 	re-establish after a restart before deleting stale routes. Default:
 	120 seconds.
 
+	<tag><label id="bgp-min-graceful-restart-time">min graceful restart time <m/number/</tag>
+	The lower bound for the graceful restart time to override the value
+	received in the BGP Graceful Restart capability announced by the
+	neighbor. Default: no lower bound.
+
+	<tag><label id="bgp-max-graceful-restart-time">max graceful restart time <m/number/</tag>
+	The upper bound for the graceful restart time to override the value
+	received in the BGP Graceful Restart capability announced by the
+	neighbor. Default: no upper bound.
+
 	<tag><label id="bgp-require-graceful-restart">require graceful restart <m/switch/</tag>
 	If enabled, the BGP Graceful Restart capability (<rfc id="4724">)
 	must be announced by the BGP neighbor, otherwise the BGP session
@@ -3070,15 +3378,25 @@ using the following configuration parameters:
 	session is re-stablished and synchronized or the stale time expires and
 	routes are removed. Default: 3600 seconds.
 
+	<tag><label id="bgp-min-long-lived-stale-time">min long lived stale time <m/number/</tag>
+	The lower bound for the long-lived stale time to override the value
+	received in the BGP Long-lived Graceful Restart capability announced
+	by the neighbor. Default: no lower bound.
+
+	<tag><label id="bgp-max-long-lived-stale-time">max long lived stale time <m/number/</tag>
+	The upper bound for the long-lived stale time to override the value
+	received in the BGP Long-lived Graceful Restart capability announced
+	by the neighbor. Default: no upper bound.
+
 	<tag><label id="bgp-require-long-lived-graceful-restart">require long lived graceful restart <m/switch/</tag>
-	If enabled, the BGP Long-lived Graceful Restart capability (draft)
+	If enabled, the BGP Long-lived Graceful Restart capability (<rfc id="9494">)
 	must be announced by the BGP neighbor, otherwise the BGP session
 	will not be established. Default: off.
 
 	<tag><label id="bgp-interpret-communities">interpret communities <m/switch/</tag>
 	<rfc id="1997"> demands that BGP speaker should process well-known
 	communities like no-export (65535, 65281) or no-advertise (65535,
-	65282). For example, received route carrying a no-adverise community
+	65282). For example, received route carrying a no-advertise community
 	should not be advertised to any of its neighbors. If this option is
 	enabled (which is by default), BIRD has such behavior automatically (it
 	is evaluated when a route is exported to the BGP protocol just before
@@ -3175,8 +3493,7 @@ using the following configuration parameters:
 	Send hold timer drops the session if the neighbor is sending keepalives,
 	but does not receive our messages, causing the TCP connection to stall.
 	This may happen due to malfunctioning or overwhelmed neighbor. See
-	<HTMLURL URL="https://datatracker.ietf.org/doc/draft-ietf-idr-bgp-sendholdtimer/"
-	name="draft-ietf-idr-bgp-sendholdtimer"> for more details.
+	<rfc id="9687"> for more details.
 
 	Like the option <cf/keepalive time/, the effective value depends on the
 	negotiated hold time, as it is scaled to maintain proportion between the
@@ -3195,9 +3512,9 @@ using the following configuration parameters:
 	Time in seconds to wait before retrying a failed attempt to connect.
 	Default: 120 seconds.
 
-	<tag><label id="bgp-error-wait-time">error wait time <m/number/,<m/number/</tag>
+	<tag><label id="bgp-error-wait-time">error wait time <m/number/, <m/number/</tag>
 	Minimum and maximum delay in seconds between a protocol failure (either
-	local or reported by the peer) and automatic restart. Doesn not apply
+	local or reported by the peer) and automatic restart. Does not apply
 	when <cf/disable after error/ is configured. If consecutive errors
 	happen, the delay is increased exponentially until it reaches the
 	maximum. Default: 60, 300.
@@ -3372,6 +3689,18 @@ be used in explicit configuration.
 	enabled a route may end with a link-local immediate next hop when the
 	IGP route has one. Default: disabled.
 
+	<tag><label id="bgp-link-local-next-hop-format">link local next hop format native|single|double</tag>
+	For IPv6 routes, BGP assumes that the Next Hop attribute contains a
+	global IPv6 address (in the first position) and an optional link-local
+	IPv6 address (in the second position): [<m/global/, <m/link-local/].
+	When a BGP session is established using just link-local addresses, there
+	may be no global IPv6 address for the next hop. BGP implementations
+	differ on how to encode such next hops. BIRD <cf/native/ format is to
+	send [zero, <m/link-local/], <cf/single/ format is [<m/link-local/],
+	<cf/double/ format is [<m/link-local/, <m/link-local/]. BIRD accepts all
+	these variants when decoding received routes, but this option controls
+	which one it uses to encode such next hops. Default: native.
+
 	<tag><label id="bgp-gateway">gateway direct|recursive</tag>
 	For received routes, their <cf/gw/ (immediate next hop) attribute is
 	computed from received <cf/bgp_next_hop/ attribute. This option
@@ -3538,7 +3867,112 @@ be used in explicit configuration.
 	set <ref id="bgp-long-lived-stale-time" name="long lived stale time">
 	per AFI/SAFI pair instead of per protocol. Default: set by protocol-wide
 	option.
+
+	<tag><label id="bgp-min-long-lived-stale-time-c">min long lived stale time <m/number/</tag>
+	Like previous graceful restart channel options, this option allows to
+	set <ref id="bgp-min-long-lived-stale-time" name="min long lived stale time">
+	per AFI/SAFI pair instead of per protocol. Default: set by protocol-wide
+	option.
+
+	<tag><label id="bgp-max-long-lived-stale-time-c">max long lived stale time <m/number/</tag>
+	Like previous graceful restart channel options, this option allows to
+	set <ref id="bgp-max-long-lived-stale-time" name="max long lived stale time">
+	per AFI/SAFI pair instead of per protocol. Default: set by protocol-wide
+	option.
 </descrip>
+
+<sect1>Reconfiguration
+<label id="bgp-reconfiguration">
+
+<p>Running the <cf/configure/ command with a changed configuration file will
+trigger a reconfiguration. This may cause a reload of the affected channel or
+a restart of the BGP protocol. A change in options that just affect route
+processing generally causes a reload, while a change in setting of BGP
+capabilities or other properties negotiated during session establishment always
+leads to a restart.
+
+<p>With the <cf/configure soft/ command, configuration changes do not trigger
+a reload, but instead just log a message about the change, suggesting manual
+reload of the channel. However, changes demanding restart still trigger a
+restart of the protocol. See <ref id="cli-configure" name="configure"> and
+<ref id="cli-reload" name="reload"> commands for more details. In the rest of
+the section, we assume the usage of the <cf/configure/ command without the
+<cf/soft/ option.
+
+<p>Changes in these channel options cause a reload of the channel in the import
+direction (re-import of routes from the BGP neighbor):
+
+<itemize>
+	<item><cf/import/
+	<item><cf/preference/
+	<item><cf/gateway/
+	<item><cf/next hop prefer/
+	<item><cf/aigp/
+	<item><cf/cost/
+</itemize>
+
+<p>Note: Reload in the import direction requires either the <cf/route refresh/
+capability negotiated or the <cf/import table/ option enabled. If neither one is
+available, the reconfiguration will trigger a restart instead of a reload. This
+does not apply for export direction.
+
+<p>Changes in these channel options cause a reload of the channel in the export
+direction (re-export of routes to the BGP neighbor):
+
+<itemize>
+	<item><cf/export/
+	<item><cf/next hop address/
+	<item><cf/next hop self/
+	<item><cf/next hop keep/
+	<item><cf/link local next hop format/
+	<item><cf/aigp/
+	<item><cf/aigp originate/
+</itemize>
+
+
+<p>Protocol options that cause a restart when changed:
+<itemize>
+	<item><cf/router id/
+	<item><cf/hostname/
+	<item><cf/vrf/
+</itemize>
+
+<p><bf/All/ BGP-specific protocol options cause a restart when changed <bf/except/ for these:
+<itemize>
+	<item><cf/bfd/
+	<item><cf/check link/
+	<item><cf/require route refresh/
+	<item><cf/require enhanced route refresh/
+	<item><cf/require AS4/
+	<item><cf/require extended messages/
+	<item><cf/require hostname/
+	<item><cf/require graceful restart/
+	<item><cf/require long lived graceful restart/
+</itemize>
+
+<p>Channel options that cause a restart when changed:
+<itemize>
+	<item><cf/table/
+	<item><cf/secondary/
+	<item><cf/validate/
+	<item><cf/graceful restart/
+	<item><cf/long lived graceful restart/
+	<item><cf/long lived stale time/
+	<item><cf/extended next hop/
+	<item><cf/add paths/
+	<item><cf/import table/
+	<item><cf/export table/
+	<item><cf/igp table/
+	<item><cf/base table/
+</itemize>
+
+<p>Channel options that may cause a restart (when changed to a value
+incompatible with the current protocol state):
+<itemize>
+	<item><cf/mandatory/
+	<item><cf/min long lived stale time/
+	<item><cf/max long lived stale time/
+</itemize>
 
 <sect1>Attributes
 <label id="bgp-attr">
@@ -3647,7 +4081,7 @@ nothing about it.
 as one known by BIRD, therefore use of this statement carries a risk of
 incompatibility with future BIRD versions.
 
-<tt><label id="bgp-attribute-custom">attribute bgp <m/number/ bytestring <m/name/;</tt>
+<p><cf><label id="bgp-attribute-custom">attribute bgp <m/number/ bytestring <m/name/;</cf>
 
 <sect1>Example
 <label id="bgp-exam">
@@ -3657,6 +4091,21 @@ protocol bgp {
 	local 198.51.100.14 as 65000;	     # Use a private AS number
 	neighbor 198.51.100.130 as 64496;    # Our neighbor ...
 	multihop;			     # ... which is connected indirectly
+	authentication ao;		     # We use TCP-AO authentication
+	keys {
+		key {
+			id 0;
+			secret "hello321";
+			algorithm hmac sha256;
+			preferred;
+		};
+		key {
+			send id 2;
+			recv id 1;
+			secret "bye123";
+			algorithm cmac aes128;
+		};
+	};
 	ipv4 {
 		export filter {			     # We use non-trivial export rules
 			if source = RTS_STATIC then { # Export only static routes
@@ -3706,6 +4155,15 @@ by default and have to be enabled during installation by the configure option
 routes (in <ref id="bgp-import-table" name="BGP import tables">) and post-policy
 routes (in regular routing tables). All BGP protocols are monitored automatically.
 
+<sect1>Configuration (incomplete)
+<label id="bmp-config">
+
+<p><descrip>
+	<tag><label id="bmp-tx-buffer-limit">tx buffer limit <m/number/</tag>
+	How much data we are going to queue before we call the session stuck
+	and restart it, in megabytes. Default value: 1024 (effectively 1 gigabyte).
+</descrip>
+
 <sect1>Example
 <label id="bmp-exam">
 
@@ -3719,6 +4177,9 @@ protocol bmp {
 
 	# Monitor accepted routes (passed import filters)
 	monitoring rib in post_policy;
+
+	# Allow only 64M of pending data
+	tx buffer limit 64;
 }
 </code>
 
@@ -3825,7 +4286,7 @@ announce local networks.
 protocol direct {
 	ipv4;
 	ipv6;
-	interface "-arc*", "*";		# Exclude the ARCnets
+	interface -"arc*", "*";		# Exclude the ARCnets
 }
 </code>
 
@@ -3904,7 +4365,7 @@ channels.
 	synchronization of routing tables until the end of the recovery. Note
 	that import of kernel routes to BIRD is not affected.
 
-	<tag><label id="krt-merge-paths">merge paths <M>switch</M> [limit <M>number</M>]</tag>
+	<tag><label id="krt-merge-paths">merge paths <m>switch</m> [limit <m>number</m>]</tag>
 	Usually, only best routes are exported to the kernel protocol. With path
 	merging enabled, both best routes and equivalent non-best routes are
 	merged during export to generate one ECMP (equal-cost multipath) route
@@ -4052,11 +4513,11 @@ could have up to 5 channels: <cf/ipv4/, <cf/ipv6/, <cf/vpn4/, <cf/vpn6/, and
 <cf/mpls/.
 
 <p><descrip>
-	<tag><label id="l3vpn-route-distinguisher">route distinguisher <m/vpnrd/</tag>
+	<tag><label id="l3vpn-route-distinguisher">route distinguisher <m/rd/</tag>
 	The route distinguisher that is attached to routes in the export
 	direction. Mandatory.
 
-	<tag><label id="l3vpn-rd">rd <m/vpnrd/</tag>
+	<tag><label id="l3vpn-rd">rd <m/rd/</tag>
 	A shorthand for the option <cf/route distinguisher/.
 
 	<tag><label id="l3vpn-import-target">import target <m/ec/|<m/ec-set/</tag>
@@ -4118,28 +4579,28 @@ ipv4 table vrf0v4;
 ipv6 table vrf0v6;
 
 protocol kernel kernel0v4 {
-        vrf "vrf0";
-        ipv4 { table vrf0v4; export all; };
-        kernel table 100;
+	vrf "vrf0";
+	ipv4 { table vrf0v4; export all; };
+	kernel table 100;
 }
 
 protocol kernel kernel0v6 {
-        vrf "vrf0";
-        ipv6 { table vrf0v6; export all; };
-        kernel table 100;
+	vrf "vrf0";
+	ipv6 { table vrf0v6; export all; };
+	kernel table 100;
 }
 
 protocol l3vpn l3vpn0 {
-        vrf "vrf0";
-        ipv4 { table vrf0v4; };
-        ipv6 { table vrf0v6; };
-        vpn4 { table vpntab4; };
-        vpn6 { table vpntab6; };
-        mpls { label policy vrf; };
+	vrf "vrf0";
+	ipv4 { table vrf0v4; };
+	ipv6 { table vrf0v6; };
+	vpn4 { table vpntab4; };
+	vpn6 { table vpntab6; };
+	mpls { label policy vrf; };
 
-        rd 10:12;
-        import target [(rt, 10, 32..40)];
-        export target [(rt, 10, 30), (rt, 10, 31)];
+	rd 10:12;
+	import target [(rt, 10, 32..40)];
+	export target [(rt, 10, 30), (rt, 10, 31)];
 }
 </code>
 
@@ -4274,100 +4735,100 @@ If no channel is configured, appropriate channel is defined with default
 parameters.
 
 <code>
-protocol ospf [v2|v3] &lt;name&gt; {
-	rfc1583compat &lt;switch&gt;;
-	rfc5838 &lt;switch&gt;;
-	instance id &lt;num&gt;;
-	stub router &lt;switch&gt;;
-	tick &lt;num&gt;;
-	ecmp &lt;switch&gt; [limit &lt;num&gt;];
-	merge external &lt;switch&gt;;
-	graceful restart &lt;switch&gt;|aware;
-	graceful restart time &lt;num&gt;;
-	area &lt;id&gt; {
+protocol ospf [v2|v3] <name> {
+	rfc1583compat <switch>;
+	rfc5838 <switch>;
+	instance id <number>;
+	stub router <switch>;
+	tick <number>;
+	ecmp <switch> [limit <number>];
+	merge external <switch>;
+	graceful restart <switch>|aware;
+	graceful restart time <number>;
+	area <id> {
 		stub;
 		nssa;
-		summary &lt;switch&gt;;
-		default nssa &lt;switch&gt;;
-		default cost &lt;num&gt;;
-		default cost2 &lt;num&gt;;
-		translator &lt;switch&gt;;
-		translator stability &lt;num&gt;;
+		summary <switch>;
+		default nssa <switch>;
+		default cost <number>;
+		default cost2 <number>;
+		translator <switch>;
+		translator stability <number>;
 
-                networks {
-			&lt;prefix&gt;;
-			&lt;prefix&gt; hidden;
+		networks {
+			<prefix>;
+			<prefix> hidden;
 		};
-                external {
-			&lt;prefix&gt;;
-			&lt;prefix&gt; hidden;
-			&lt;prefix&gt; tag &lt;num&gt;;
+		external {
+			<prefix>;
+			<prefix> hidden;
+			<prefix> tag <number>;
 		};
-		stubnet &lt;prefix&gt;;
-		stubnet &lt;prefix&gt; {
-			hidden &lt;switch&gt;;
-			summary &lt;switch&gt;;
-			cost &lt;num&gt;;
+		stubnet <prefix>;
+		stubnet <prefix> {
+			hidden <switch>;
+			summary <switch>;
+			cost <number>;
 		};
-		interface &lt;interface pattern&gt; [instance &lt;num&gt;] {
-			cost &lt;num&gt;;
-			stub &lt;switch&gt;;
-			hello &lt;num&gt;;
-			poll &lt;num&gt;;
-			retransmit &lt;num&gt;;
-			priority &lt;num&gt;;
-			wait &lt;num&gt;;
-			dead count &lt;num&gt;;
-			dead &lt;num&gt;;
-			secondary &lt;switch&gt;;
-			rx buffer [normal|large|&lt;num&gt;];
-			tx length &lt;num&gt;;
+		interface <interface pattern> [instance <number>] {
+			cost <number>;
+			stub <switch>;
+			hello <number>;
+			poll <number>;
+			retransmit <number>;
+			priority <number>;
+			wait <number>;
+			dead count <number>;
+			dead <number>;
+			secondary <switch>;
+			rx buffer [normal|large|<number>];
+			tx length <number>;
 			type [broadcast|bcast|pointopoint|ptp|
 				nonbroadcast|nbma|pointomultipoint|ptmp];
-			link lsa suppression &lt;switch&gt;;
-			strict nonbroadcast &lt;switch&gt;;
-			real broadcast &lt;switch&gt;;
-			ptp netmask &lt;switch&gt;;
-			ptp address &lt;switch&gt;;
-			check link &lt;switch&gt;;
-			bfd &lt;switch&gt;;
-			ecmp weight &lt;num&gt;;
-			ttl security [&lt;switch&gt;; | tx only]
-			tx class|dscp &lt;num&gt;;
-			tx priority &lt;num&gt;;
+			link lsa suppression <switch>;
+			strict nonbroadcast <switch>;
+			real broadcast <switch>;
+			ptp netmask <switch>;
+			ptp address <switch>;
+			check link <switch>;
+			bfd <switch>;
+			ecmp weight <number>;
+			ttl security [<switch>; | tx only]
+			tx class|dscp <number>;
+			tx priority <number>;
 			authentication none|simple|cryptographic;
-			password "&lt;text&gt;";
-			password "&lt;text&gt;" {
-				id &lt;num&gt;;
-				generate from "&lt;date&gt;";
-				generate to "&lt;date&gt;";
-				accept from "&lt;date&gt;";
-				accept to "&lt;date&gt;";
-				from "&lt;date&gt;";
-				to "&lt;date&gt;";
+			password "<text>";
+			password "<text>" {
+				id <number>;
+				generate from "<date>";
+				generate to "<date>";
+				accept from "<date>";
+				accept to "<date>";
+				from "<date>";
+				to "<date>";
 				algorithm ( keyed md5 | keyed sha1 | hmac sha1 | hmac sha256 | hmac sha384 | hmac sha512 );
 			};
 			neighbors {
-				&lt;ip&gt;;
-				&lt;ip&gt; eligible;
+				<ip>;
+				<ip> eligible;
 			};
 		};
-		virtual link &lt;id&gt; [instance &lt;num&gt;] {
-			hello &lt;num&gt;;
-			retransmit &lt;num&gt;;
-			wait &lt;num&gt;;
-			dead count &lt;num&gt;;
-			dead &lt;num&gt;;
+		virtual link <id> [instance <number>] {
+			hello <number>;
+			retransmit <number>;
+			wait <number>;
+			dead count <number>;
+			dead <number>;
 			authentication none|simple|cryptographic;
-			password "&lt;text&gt;";
-			password "&lt;text&gt;" {
-				id &lt;num&gt;;
-				generate from "&lt;date&gt;";
-				generate to "&lt;date&gt;";
-				accept from "&lt;date&gt;";
-				accept to "&lt;date&gt;";
-				from "&lt;date&gt;";
-				to "&lt;date&gt;";
+			password "<text>";
+			password "<text>" {
+				id <number>;
+				generate from "<date>";
+				generate to "<date>";
+				accept from "<date>";
+				accept to "<date>";
+				from "<date>";
+				to "<date>";
 				algorithm ( keyed md5 | keyed sha1 | hmac sha1 | hmac sha256 | hmac sha384 | hmac sha512 );
 			};
 		};
@@ -4376,7 +4837,7 @@ protocol ospf [v2|v3] &lt;name&gt; {
 </code>
 
 <descrip>
-	<tag><label id="ospf-rfc1583compat">rfc1583compat <M>switch</M></tag>
+	<tag><label id="ospf-rfc1583compat">rfc1583compat <m>switch</m></tag>
 	This option controls compatibility of routing table calculation with
 	<rfc id="1583">. Default value is no.
 
@@ -4387,7 +4848,7 @@ protocol ospf [v2|v3] &lt;name&gt; {
 	disabled if necessary, as it restricts the range of available instance
 	IDs. Default value is yes.
 
-	<tag><label id="ospf-instance-id">instance id <m/num/</tag>
+	<tag><label id="ospf-instance-id">instance id <m/number/</tag>
 	When multiple OSPF protocol instances are active on the same links, they
 	should use different instance IDs to distinguish their packets. Although
 	it could be done on per-interface basis, it is often preferred to set
@@ -4398,7 +4859,7 @@ protocol ospf [v2|v3] &lt;name&gt; {
 	<cf/interface/ option. Default value is 0 unless OSPFv3-AF extended
 	address families are used, see <rfc id="5838"> for that case.
 
-	<tag><label id="ospf-stub-router">stub router <M>switch</M></tag>
+	<tag><label id="ospf-stub-router">stub router <m>switch</m></tag>
 	This option configures the router to be a stub router, i.e., a router
 	that participates in the OSPF topology but does not allow transit
 	traffic. In OSPFv2, this is implemented by advertising maximum metric
@@ -4406,13 +4867,13 @@ protocol ospf [v2|v3] &lt;name&gt; {
 	clearing the R-bit in the router LSA. See <rfc id="6987"> for details.
 	Default value is no.
 
-	<tag><label id="ospf-tick">tick <M>num</M></tag>
+	<tag><label id="ospf-tick">tick <m>number</m></tag>
 	The routing table calculation and clean-up of areas' databases is not
 	performed when a single link state change arrives. To lower the CPU
-	utilization, it's processed later at periodical intervals of <m/num/
+	utilization, it's processed later at periodical intervals of <m/number/
 	seconds. The default value is 1.
 
-	<tag><label id="ospf-ecmp">ecmp <M>switch</M> [limit <M>number</M>]</tag>
+	<tag><label id="ospf-ecmp">ecmp <m>switch</m> [limit <m>number</m>]</tag>
 	This option specifies whether OSPF is allowed to generate ECMP
 	(equal-cost multipath) routes. Such routes are used when there are
 	several directions to the destination, each with the same (computed)
@@ -4420,7 +4881,7 @@ protocol ospf [v2|v3] &lt;name&gt; {
 	nexthops in one route. By default, ECMP is enabled if supported by
 	Kernel. Default value of the limit is 16.
 
-	<tag><label id="ospf-merge-external">merge external <M>switch</M></tag>
+	<tag><label id="ospf-merge-external">merge external <m>switch</m></tag>
 	This option specifies whether OSPF should merge external routes from
 	different routers/LSAs for the same destination. When enabled together
 	with <cf/ecmp/, equal-cost external routes will be combined to multipath
@@ -4448,12 +4909,12 @@ protocol ospf [v2|v3] &lt;name&gt; {
 	proper support for local graceful restart requires also configuration of
 	other protocols. Default: aware.
 
-	<tag><label id="ospf-graceful-restart-time">graceful restart time <m/num/</tag>
+	<tag><label id="ospf-graceful-restart-time">graceful restart time <m/number/</tag>
 	The restart time is announced in the Grace-LSA and specifies how long
 	neighbors should wait for proper end of the graceful restart before
 	exiting helper mode prematurely. Default: 120 seconds.
 
-	<tag><label id="ospf-area">area <M>id</M></tag>
+	<tag><label id="ospf-area">area <m>id</m></tag>
 	This defines an OSPF area with given area ID (an integer or an IPv4
 	address, similarly to a router ID). The most important area is the
 	backbone (ID 0) to which every other area must be connected.
@@ -4472,7 +4933,7 @@ protocol ospf [v2|v3] &lt;name&gt; {
 	(and possibly translated and/or aggregated on area boundary). By
 	default, the area is not NSSA.
 
-	<tag><label id="ospf-summary">summary <M>switch</M></tag>
+	<tag><label id="ospf-summary">summary <m>switch</m></tag>
 	This option controls propagation of summary LSAs into stub or NSSA
 	areas. If enabled, summary LSAs are propagated as usual, otherwise just
 	the default summary route (0.0.0.0/0) is propagated (this is sometimes
@@ -4480,29 +4941,29 @@ protocol ospf [v2|v3] &lt;name&gt; {
 	routers, propagating summary LSAs could lead to more efficient routing
 	at the cost of larger link state database. Default value is no.
 
-	<tag><label id="ospf-default-nssa">default nssa <M>switch</M></tag>
+	<tag><label id="ospf-default-nssa">default nssa <m>switch</m></tag>
 	When <cf/summary/ option is enabled, default summary route is no longer
 	propagated to the NSSA. In that case, this option allows to originate
 	default route as NSSA-LSA to the NSSA. Default value is no.
 
-	<tag><label id="ospf-default-cost">default cost <M>num</M></tag>
+	<tag><label id="ospf-default-cost">default cost <m>number</m></tag>
 	This option controls the cost of a default route propagated to stub and
 	NSSA areas. Default value is 1000.
 
-	<tag><label id="ospf-default-cost2">default cost2 <M>num</M></tag>
+	<tag><label id="ospf-default-cost2">default cost2 <m>number</m></tag>
 	When a default route is originated as NSSA-LSA, its cost can use either
 	type 1 or type 2 metric. This option allows to specify the cost of a
 	default route in type 2 metric. By default, type 1 metric (option
 	<cf/default cost/) is used.
 
-	<tag><label id="ospf-translator">translator <M>switch</M></tag>
+	<tag><label id="ospf-translator">translator <m>switch</m></tag>
 	This option controls translation of NSSA-LSAs into external LSAs. By
 	default, one translator per NSSA is automatically elected from area
 	boundary routers. If enabled, this area boundary router would
 	unconditionally translate all NSSA-LSAs regardless of translator
 	election. Default value is no.
 
-	<tag><label id="ospf-translator-stability">translator stability <M>num</M></tag>
+	<tag><label id="ospf-translator-stability">translator stability <m>number</m></tag>
 	This option controls the translator stability interval (in seconds).
 	When the new translator is elected, the old one keeps translating until
 	the interval is over. Default value is 40.
@@ -4532,7 +4993,7 @@ protocol ospf [v2|v3] &lt;name&gt; {
 	that are subnetworks of given stub network are suppressed. This might be
 	used, for example, to aggregate generated stub networks.
 
-	<tag><label id="ospf-iface">interface <M>pattern</M> [instance <m/num/]</tag>
+	<tag><label id="ospf-iface">interface <m>pattern</m> [instance <m/number/]</tag>
 	Defines that the specified interfaces belong to the area being defined.
 	See <ref id="proto-iface" name="interface"> common option for detailed
 	description. In OSPFv2, extended interface clauses are used, because
@@ -4544,66 +5005,66 @@ protocol ospf [v2|v3] &lt;name&gt; {
 	ID support is an extension (<rfc id="6549">) and is supposed to be set
 	per-protocol. For OSPFv3, it is an integral feature.
 
-	<tag><label id="ospf-virtual-link">virtual link <M>id</M> [instance <m/num/]</tag>
+	<tag><label id="ospf-virtual-link">virtual link <m>id</m> [instance <m/number/]</tag>
 	Virtual link to router with the router id. Virtual link acts as a
 	point-to-point interface belonging to backbone. The actual area is used
 	as a transport area. This item cannot be in the backbone. Like with
 	<cf/interface/ option, you could also use several virtual links to one
 	destination with different instance IDs.
 
-	<tag><label id="ospf-cost">cost <M>num</M></tag>
+	<tag><label id="ospf-cost">cost <m>number</m></tag>
 	Specifies output cost (metric) of an interface. Default value is 10.
 
-	<tag><label id="ospf-stub-iface">stub <M>switch</M></tag>
+	<tag><label id="ospf-stub-iface">stub <m>switch</m></tag>
 	If set to interface it does not listen to any packet and does not send
 	any hello. Default value is no.
 
-	<tag><label id="ospf-hello">hello <M>num</M></tag>
+	<tag><label id="ospf-hello">hello <m>number</m></tag>
 	Specifies interval in seconds between sending of Hello messages. Beware,
 	all routers on the same network need to have the same hello interval.
 	Default value is 10.
 
-	<tag><label id="ospf-poll">poll <M>num</M></tag>
+	<tag><label id="ospf-poll">poll <m>number</m></tag>
 	Specifies interval in seconds between sending of Hello messages for some
 	neighbors on NBMA network. Default value is 20.
 
-	<tag><label id="ospf-retransmit">retransmit <M>num</M></tag>
+	<tag><label id="ospf-retransmit">retransmit <m>number</m></tag>
 	Specifies interval in seconds between retransmissions of unacknowledged
 	updates. Default value is 5.
 
-	<tag><label id="ospf-transmit-delay">transmit delay <M>num</M></tag>
+	<tag><label id="ospf-transmit-delay">transmit delay <m>number</m></tag>
 	Specifies estimated transmission delay of link state updates send over
 	the interface. The value is added to LSA age of LSAs propagated through
 	it. Default value is 1.
 
-	<tag><label id="ospf-priority">priority <M>num</M></tag>
+	<tag><label id="ospf-priority">priority <m>number</m></tag>
 	On every multiple access network (e.g., the Ethernet) Designated Router
 	and Backup Designated router are elected. These routers have some special
 	functions in the flooding process. Higher priority increases preferences
 	in this election. Routers with priority 0 are not eligible. Default
 	value is 1.
 
-	<tag><label id="ospf-wait">wait <M>num</M></tag>
+	<tag><label id="ospf-wait">wait <m>number</m></tag>
 	After start, router waits for the specified number of seconds between
 	starting election and building adjacency. Default value is 4*<m/hello/.
 
-	<tag><label id="ospf-dead-count">dead count <M>num</M></tag>
+	<tag><label id="ospf-dead-count">dead count <m>number</m></tag>
 	When the router does not receive any messages from a neighbor in
 	<m/dead count/*<m/hello/ seconds, it will consider the neighbor down.
 
-	<tag><label id="ospf-dead">dead <M>num</M></tag>
+	<tag><label id="ospf-dead">dead <m>number</m></tag>
 	When the router does not receive any messages from a neighbor in
 	<m/dead/ seconds, it will consider the neighbor down. If both directives
 	<cf/dead count/ and <cf/dead/ are used, <cf/dead/ has precedence.
 
-	<tag><label id="ospf-rx-buffer">rx buffer <M>num</M></tag>
+	<tag><label id="ospf-rx-buffer">rx buffer <m>number</m></tag>
 	This option allows to specify the size of buffers used for packet
 	processing. The buffer size should be bigger than maximal size of any
 	packets. By default, buffers are dynamically resized as needed, but a
 	fixed value could be specified. Value <cf/large/ means maximal allowed
 	packet size - 65535.
 
-	<tag><label id="ospf-tx-length">tx length <M>num</M></tag>
+	<tag><label id="ospf-tx-length">tx length <m>number</m></tag>
 	Transmitted OSPF messages that contain large amount of information are
 	segmented to separate OSPF packets to avoid IP fragmentation. This
 	option specifies the soft ceiling for the length of generated OSPF
@@ -4688,7 +5149,7 @@ protocol ospf [v2|v3] &lt;name&gt; {
 	related to this issue. Default value is no for unnumbered PtP links when
 	graceful restart is enabled, yes otherwise.
 
-	<tag><label id="ospf-check-link">check link <M>switch</M></tag>
+	<tag><label id="ospf-check-link">check link <m>switch</m></tag>
 	If set, a hardware link state (reported by OS) is taken into consideration.
 	When a link disappears (e.g. an ethernet cable is unplugged), neighbors
 	are immediately considered unreachable and only the address of the iface
@@ -4696,7 +5157,7 @@ protocol ospf [v2|v3] &lt;name&gt; {
 	some hardware drivers or platforms do not implement this feature.
 	Default value is yes.
 
-	<tag><label id="ospf-bfd">bfd <M>switch</M></tag>
+	<tag><label id="ospf-bfd">bfd <m>switch</m></tag>
 	OSPF could use BFD protocol as an advisory mechanism for neighbor
 	liveness and failure detection. If enabled, BIRD setups a BFD session
 	for each OSPF neighbor and tracks its liveness by it. This has an
@@ -4717,12 +5178,12 @@ protocol ospf [v2|v3] &lt;name&gt; {
 	set to <cf/tx only/, TTL 255 is used for sent packets, but is not
 	checked for received packets. Default value is no.
 
-	<tag><label id="ospf-tx-class">tx class|dscp|priority <m/num/</tag>
+	<tag><label id="ospf-tx-class">tx class|dscp|priority <m/number/</tag>
 	These options specify the ToS/DiffServ/Traffic class/Priority of the
 	outgoing OSPF packets. See <ref id="proto-tx-class" name="tx class"> common
 	option for detailed description.
 
-	<tag><label id="ospf-ecmp-weight">ecmp weight <M>num</M></tag>
+	<tag><label id="ospf-ecmp-weight">ecmp weight <m>number</m></tag>
 	When ECMP (multipath) routes are allowed, this value specifies a
 	relative weight used for nexthops going through the iface. Allowed
 	values are 1-256. Default value is 1.
@@ -4743,7 +5204,7 @@ protocol ospf [v2|v3] &lt;name&gt; {
 	network, so this mechanism is quite secure. Packets can still be read by
 	an attacker.
 
-	<tag><label id="ospf-pass">password "<M>text</M>"</tag>
+	<tag><label id="ospf-pass">password "<m>text</m>"</tag>
 	Specifies a password used for authentication. See
 	<ref id="proto-pass" name="password"> common option for detailed
 	description.
@@ -4811,14 +5272,14 @@ protocol ospf MyOSPF {
 			authentication cryptographic;
 			password "abc" {
 				id 1;
-				generate to "22-04-2003 11:00:06";
-				accept from "17-01-2001 12:01:05";
+				generate to "2023-04-22 11:00:06";
+				accept from "2021-01-17 12:01:05";
 				algorithm hmac sha384;
 			};
 			password "def" {
 				id 2;
-				generate to "22-07-2005 17:03:21";
-				accept from "22-02-2001 11:34:06";
+				generate to "2025-07-22";
+				accept from "2021-02-22";
 				algorithm hmac sha512;
 			};
 		};
@@ -5404,52 +5865,53 @@ protocol instance can be configured by using <cf/rip ng/ instead of just
 configured, appropriate channel is defined with default parameters.
 
 <code>
-protocol rip [ng] [&lt;name&gt;] {
-	infinity &lt;number&gt;;
-	ecmp &lt;switch&gt; [limit &lt;number&gt;];
-	interface &lt;interface pattern&gt; {
-		metric &lt;number&gt;;
+protocol rip [ng] [<name>] {
+	infinity <number>;
+	ecmp <switch> [limit <number>];
+	interface <interface pattern> {
+		metric <number>;
 		mode multicast|broadcast;
-		passive &lt;switch&gt;;
-		address &lt;ip&gt;;
-		port &lt;number&gt;;
+		passive <switch>;
+		address <ip>;
+		port <number>;
 		version 1|2;
-		split horizon &lt;switch&gt;;
-		poison reverse &lt;switch&gt;;
-		demand circuit &lt;switch&gt;;
-		check zero &lt;switch&gt;;
-		update time &lt;number&gt;;
-		timeout time &lt;number&gt;;
-		garbage time &lt;number&gt;;
-		ecmp weight &lt;number&gt;;
-		ttl security &lt;switch&gt;; | tx only;
-		tx class|dscp &lt;number&gt;;
-		tx priority &lt;number&gt;;
-		rx buffer &lt;number&gt;;
-		tx length &lt;number&gt;;
-		check link &lt;switch&gt;;
+		split horizon <switch>;
+		poison reverse <switch>;
+		demand circuit <switch>;
+		check zero <switch>;
+		update time <number>;
+		timeout time <number>;
+		garbage time <number>;
+		ecmp weight <number>;
+		ttl security <switch>; | tx only;
+		tx class|dscp <number>;
+		tx priority <number>;
+		rx buffer <number>;
+		tx length <number>;
+		check link <switch>;
 		authentication none|plaintext|cryptographic;
-		password "&lt;text&gt;";
-		password "&lt;text&gt;" {
-			id &lt;num&gt;;
-			generate from "&lt;date&gt;";
-			generate to "&lt;date&gt;";
-			accept from "&lt;date&gt;";
-			accept to "&lt;date&gt;";
-			from "&lt;date&gt;";
-			to "&lt;date&gt;";
-			algorithm ( keyed md5 | keyed sha1 | hmac sha1 | hmac sha256 | hmac sha384 | hmac sha512 );
+		password "<text>";
+		password "<text>" {
+			id <number>;
+			generate from "<date>";
+			generate to "<date>";
+			accept from "<date>";
+			accept to "<date>";
+			from "<date>";
+			to "<date>";
+			algorithm ( keyed md5 | keyed sha1 | hmac sha1 |
+				hmac sha256 | hmac sha384 | hmac sha512 );
 		};
 	};
 }
 </code>
 
 <descrip>
-	<tag><label id="rip-infinity">infinity <M>number</M></tag>
+	<tag><label id="rip-infinity">infinity <m>number</m></tag>
 	Selects the distance of infinity. Bigger values will make
 	protocol convergence even slower. The default value is 16.
 
-	<tag><label id="rip-ecmp">ecmp <M>switch</M> [limit <M>number</M>]</tag>
+	<tag><label id="rip-ecmp">ecmp <m>switch</m> [limit <m>number</m>]</tag>
 	This option specifies whether RIP is allowed to generate ECMP
 	(equal-cost multipath) routes. Such routes are used when there are
 	several directions to the destination, each with the same (computed)
@@ -5467,7 +5929,7 @@ protocol rip [ng] [&lt;name&gt;] {
 <p>Interface specific options:
 
 <descrip>
-	<tag><label id="rip-iface-metric">metric <m/num/</tag>
+	<tag><label id="rip-iface-metric">metric <m/number/</tag>
 	This option specifies the metric of the interface. When a route is
 	received from the interface, its metric is increased by this value
 	before further processing. Valid values are 1-255, but values higher
@@ -5659,6 +6121,7 @@ protocol rip {
 <label id="rpki">
 
 <sect1>Introduction
+<label id="rpki-introduction">
 
 <p>The Resource Public Key Infrastructure (RPKI) is mechanism for origin
 validation of BGP routes (<rfc id="6480">). BIRD supports only so-called
@@ -5677,9 +6140,13 @@ affected routes after RPKI update, see option <ref id="proto-rpki-reload"
 name="rpki reload">. Or you can use a BIRD client command <cf>reload in
 <m/bgp_protocol_name/</cf> for manual call of revalidation of all routes.
 
+<p>The same protocol, since version 2, also receives and maintains a set
+of ASPAs. You can then validate AS paths using function <cf/aspa_check()/
+in (import) filters.
+
 <sect1>Supported transports
-<p>
-<itemize>
+<label id="rpki-transport">
+<p><itemize>
         <item>Unprotected transport over TCP uses a port 323. The cache server
         and BIRD router should be on the same trusted and controlled network
         for security reasons.
@@ -5687,51 +6154,60 @@ name="rpki reload">. Or you can use a BIRD client command <cf>reload in
         22.
 </itemize>
 
-<sect1>Configuration
+<sect1>Configuration overview
+<label id="rpki-configuration">
 
 <p>We currently support just one cache server per protocol. However you can
 define more RPKI protocols generally.
 
 <code>
-protocol rpki [&lt;name&gt;] {
-        roa4 { table &lt;tab&gt;; };
-        roa6 { table &lt;tab&gt;; };
-        remote &lt;ip&gt; | "&lt;domain&gt;" [port &lt;num&gt;];
-        port &lt;num&gt;;
-        local address &lt;ip&gt;;
-        refresh [keep] &lt;num&gt;;
-        retry [keep] &lt;num&gt;;
-        expire [keep] &lt;num&gt;;
-        transport tcp;
-        transport ssh {
-                bird private key "&lt;/path/to/id_rsa&gt;";
-                remote public key "&lt;/path/to/known_host&gt;";
-                user "&lt;name&gt;";
-        };
+protocol rpki [<name>] {
+	roa4 { table <tab>; };
+	roa6 { table <tab>; };
+	aspa { table <tab>; };
+	remote <ip> | "<domain>" [port <number>];
+	port <number>;
+	local address <ip>;
+	refresh [keep] <number>;
+	retry [keep] <number>;
+	expire [keep] <number>;
+	ignore max length <switch>;
+	min version <number>;
+	max version <number>;
+	transport tcp {
+		authentication none|md5;
+		password "<text>";
+	};
+	transport ssh {
+		bird private key "&lt;/path/to/id_rsa&gt;";
+		remote public key "&lt;/path/to/known_host&gt;";
+		user "<name>";
+	};
 }
 </code>
 
-<p>Alse note that you have to specify the ROA channel. If you want to import
+<p>Alse note that you have to specify the ROA and ASPA channels. If you want to import
 only IPv4 prefixes you have to specify only roa4 channel. Similarly with IPv6
 prefixes only. If you want to fetch both IPv4 and even IPv6 ROAs you have to
 specify both channels.
 
 <sect2>RPKI protocol options
+<label id="rpki-common-options">
 <p>
 <descrip>
-        <tag>remote <m/ip/ | "<m/hostname/" [port <m/num/]</tag> Specifies
+        <tag><label id="rpki-remote">remote <m/ip/ | "<m/hostname/" [port <m/number/]</tag> Specifies
         a destination address of the cache server.  Can be specified by an IP
         address or by full domain name string.  Only one cache can be specified
         per protocol. This option is required.
 
-        <tag>port <m/num/</tag> Specifies the port number. The default port
+        <tag><label id="rpki-port">port <m/number/</tag> Specifies the port number. The default port
         number is 323 for transport without any encryption and 22 for transport
         with SSH encryption.
 
-        <tag>local address <m/ip/</tag>
+        <tag><label id="rpki-local-address">local address <m/ip/</tag>
         Define local address we should use as a source address for the RTR session.
 
-        <tag>refresh [keep] <m/num/</tag> Time period in seconds. Tells how
+        <tag><label id="rpki-refresh">refresh [keep] <m/number/</tag> Time period in seconds. Tells how
         long to wait before next attempting to poll the cache using a Serial
         Query or a Reset Query packet. Must be lower than 86400 seconds (one
         day). Too low value can caused a false positive detection of
@@ -5739,51 +6215,77 @@ specify both channels.
         this value by a cache server.
         Default: 3600 seconds
 
-        <tag>retry [keep] <m/num/</tag> Time period in seconds between a failed
+        <tag><label id="rpki-retry">retry [keep] <m/number/</tag> Time period in seconds between a failed
         Serial/Reset Query and a next attempt.  Maximum allowed value is 7200
         seconds (two hours). Too low value can caused a false positive
         detection of network connection problems.  A keyword <cf/keep/
         suppresses updating this value by a cache server.
         Default: 600 seconds
 
-        <tag>expire [keep] <m/num/</tag> Time period in seconds. Received
+        <tag><label id="rpki-expire">expire [keep] <m/number/</tag> Time period in seconds. Received
         records are deleted if the client was unable to successfully refresh
         data for this time period.  Must be in range from 600 seconds (ten
         minutes) to 172800 seconds (two days).  A keyword <cf/keep/
         suppresses updating this value by a cache server.
         Default: 7200 seconds
 
-	<tag>ignore max length <m/switch/</tag>
+	<tag><label id="rpki-ignore-max-length">ignore max length <m/switch/</tag>
 	Ignore received max length in ROA records and use max value (32 or 128)
 	instead. This may be useful for implementing loose RPKI check for
 	blackholes. Default: disabled.
 
-        <tag>transport tcp</tag> Unprotected transport over TCP. It's a default
-        transport. Should be used only on secure private networks.
-        Default: tcp
+	<tag><label id="rpki-min-version">min version <m/number/</tag>
+	Minimal allowed version of the RTR protocol. BIRD will refuse to
+	downgrade a connection below this version and drop the session instead.
+	Default: 0
 
-        <tag>transport ssh { <m/SSH transport options.../ }</tag> It enables a
+	<tag><label id="rpki-max-version">max version <m/number/</tag>
+	Maximal allowed version of the RTR protocol. BIRD will start with this
+        version. Use this option if sending version 2 to your cache causes
+        problems. Default: 2
+
+        <tag><label id="rpki-transport-tcp">transport tcp { <m/TCP transport options.../ }</tag> Transport over
+        TCP, it's the default transport. Cannot be combined with a SSH transport.
+        Default: TCP, no authentication.
+
+        <tag><label id="rpki-transport-ssh">transport ssh { <m/SSH transport options.../ }</tag> It enables a
         SSHv2 transport encryption. Cannot be combined with a TCP transport.
         Default: off
 </descrip>
 
+<sect3>TCP transport options
+<label id="rpki-tcp-transport-options">
+<p><descrip>
+	<tag><label id="rpki-tcp-authentication">authentication none|md5</tag>
+	Select authentication method to be used. <cf/none/ means no
+	authentication, <cf/md5/ is TCP-MD5 authentication (<rfc id="2385">).
+	Default: no authentication.
+
+	<tag><label id="rpki-tcp-password">password "<m>text</m>"</tag>
+	Use this password for TCP-MD5 authentication of the RPKI-To-Router session.
+</descrip>
+
 <sect3>SSH transport options
-<p>
-<descrip>
-	<tag>bird private key "<m>/path/to/id_rsa</m>"</tag>
+<label id="ssh-tcp-transport-options">
+<p><descrip>
+	<tag><label id="rpki-ssh-private-key">bird private key "<m>/path/to/id_rsa</m>"</tag>
 	A path to the BIRD's private SSH key for authentication.
 	It can be a <cf><m>id_rsa</m></cf> file.
 
-	<tag>remote public key "<m>/path/to/known_host</m>"</tag>
+	<tag><label id="rpki-ssh-remote-public-key">remote public key "<m>/path/to/known_host</m>"</tag>
 	A path to the cache's public SSH key for verification identity
 	of the cache server. It could be a path to <cf><m>known_host</m></cf> file.
 
-	<tag>user "<m/name/"</tag>
-	A SSH user name for authentication. This option is a required.
+	<tag><label id="rpki-ssh-user">user "<m/name/"</tag>
+	A SSH user name for authentication. This option is required.
 </descrip>
 
 <sect1>Examples
+<label id="rpki-examples">
+
 <sect2>BGP origin validation
+<label id="rpki-example-bgp-origin-validation">
+
 <p>Policy: Don't import <cf/ROA_INVALID/ routes.
 <code>
 roa4 table r4;
@@ -5824,6 +6326,8 @@ protocol bgp {
 </code>
 
 <sect2>SSHv2 transport encryption
+<label id="rpki-example-sshv2-transport-encryption">
+
 <p>
 <code>
 roa4 table r4;
@@ -5893,12 +6397,13 @@ each labeled route.
 <p>Route definitions (each may also contain a block of per-route options):
 
 <sect1>Regular routes; MPLS switching rules
+<label id="static-mpls-rules">
 
 <p>There exist several types of routes; keep in mind that <m/prefix/ syntax is
 <ref id="type-prefix" name="dependent on network type">.
 
 <descrip>
-	<tag>route <m/prefix/ [mpls <m/number/] via <m/ip/|<m/"interface"/ [<m/per-nexthop options/] [via ...]</tag>
+	<tag><label id="static-route-regular">route <m/prefix/ [mpls <m/number/] via <m/ip/|<m/"interface"/ [<m/per-nexthop options/] [via ...]</tag>
 	Regular routes may bear one or more <ref id="route-next-hop" name="next
 	hops">. Every next hop is preceded by <cf/via/ and configured as shown.
 
@@ -5906,12 +6411,12 @@ each labeled route.
 	after <m/prefix/ specifies a static label for the labeled route, instead
 	of using dynamically allocated label.
 
-	<tag>route <m/prefix/ [mpls <m/number/] recursive <m/ip/ [mpls <m/num/[/<m/num/[/<m/num/[...]]]]</tag>
+	<tag><label id="static-route-recursive">route <m/prefix/ [mpls <m/number/] recursive <m/ip/ [mpls <m/number/[/<m/number/[/<m/number/[...]]]]</tag>
 	Recursive nexthop resolves the given IP in the configured IGP table and
 	uses that route's next hop. The MPLS stacks are concatenated; on top is
 	the IGP's nexthop stack and on bottom is this route's stack.
 
-	<tag>route <m/prefix/ [mpls <m/number/] blackhole|unreachable|prohibit</tag>
+	<tag><label id="static-route-special">route <m/prefix/ [mpls <m/number/] blackhole|unreachable|prohibit</tag>
 	Special routes specifying to silently drop the packet, return it as
 	unreachable or return it as administratively prohibited. First two
 	targets are also known as <cf/drop/ and <cf/reject/.
@@ -5923,6 +6428,7 @@ uninstalls the route from the table it is connected to and adds it again as soon
 as the destination becomes adjacent again.
 
 <sect2>Per-nexthop options
+<label id="static-per-nexthop-options">
 
 <p>There are several options that in a case of multipath route are per-nexthop
 (i.e., they can be used multiple times for a route, one time for each nexthop).
@@ -5951,7 +6457,7 @@ options (<cf/bfd/ and <cf/weight 1/), the second nexthop has just <cf/weight 2/.
 	network prefix. By default, the outgoing interface is resolved from the
 	nexthop address.
 
-	<tag><label id="static-route-mpls">mpls <m/num/[/<m/num/[/<m/num/[...]]]</tag>
+	<tag><label id="static-route-mpls">mpls <m/number/[/<m/number/[/<m/number/[...]]]</tag>
 	MPLS labels that should be pushed to packets forwarded by the route.
 	The option could be used for both IP routes (on MPLS ingress routers)
 	and MPLS switching rules (on MPLS transit routers). Default value is
@@ -5969,32 +6475,42 @@ options (<cf/bfd/ and <cf/weight 1/), the second nexthop has just <cf/weight 2/.
 </descrip>
 
 <sect1>Route Origin Authorization
+<label id="static-route-origin-authorization">
 
 <p>The ROA config is just <cf>route <m/prefix/ max <m/int/ as <m/int/</cf> with no nexthop.
 
-<sect1>Flowspec
-<label id="flowspec-network-type">
+<sect1>Autonomous System Provider Authorization
+<label id="static-autonomous-system-provider-authorization">
+
+<p>The ASPA config is <cf>route aspa <m/int/ providers <m/int/ [, <m/int/ ...]</cf> with no nexthop.
+  The first ASN is client and the following are a list of providers.
+  For a transit, you can also write <cf>route aspa <m/int/ transit</cf> to get
+  the no-provider ASPA.
+
+<sect1>Flowspec Network Type
+<label id="static-flowspec-network-type">
 
 <p>The flow specification are rules for routers and firewalls for filtering
-purpose. It is described by <rfc id="5575">. There are 3 types of arguments:
+purpose. It is described by <rfc id="8955"> and <rfc id="8956">. There are 3 types of arguments:
 <m/inet4/ or <m/inet6/ prefixes, numeric matching expressions and bitmask
 matching expressions.
 
-Numeric matching is a matching sequence of numbers and ranges separeted by a
+<p>Numeric matching is a matching sequence of numbers and ranges separeted by a
 commas (<cf/,/) (e.g. <cf/10,20,30/). Ranges can be written using double dots
 <cf/../ notation (e.g. <cf/80..90,120..124/). An alternative notation are
 sequence of one or more pairs of relational operators and values separated by
 logical operators <cf/&&/ or <cf/||/. Allowed relational operators are <cf/=/,
 <cf/!=/, <cf/</, <cf/<=/, <cf/>/, <cf/>=/, <cf/true/ and <cf/false/.
 
-Bitmask matching is written using <m/value/<cf>/</cf><m/mask/ or
+<p>Bitmask matching is written using <m/value/<cf>/</cf><m/mask/ or
 <cf/!/<m/value/<cf>/</cf><m/mask/ pairs. It means that <cf/(/<m/data/ <cf/&/
 <m/mask/<cf/)/ is or is not equal to <m/value/. It is also possible to use
-multiple value/mask pairs connected by logical operators <cf/&&/ or <cf/||/.
+multiple value/mask pairs connected by logical operators <cf/&amp;&amp;/ or <cf/||/.
 Note that for negated matches, value must be either zero or equal to bitmask
-(e.g. !0x0/0xf or !0xf/0xf, but not !0x3/0xf).
+(e.g. <cf>!0x0/0xf</cf> or <cf>!0xf/0xf</cf>, but not <cf>!0x3/0xf</cf>).
 
 <sect2>IPv4 Flowspec
+<label id="static-flowspec-ipv4">
 
 <p><descrip>
 	<tag><label id="flow-dst">dst <m/inet4/</tag>
@@ -6039,7 +6555,7 @@ Note that for negated matches, value must be either zero or equal to bitmask
 	<tag><label id="flow-fragment">fragment <m/fragmentation-type/</tag>
 	Set a matching type of packet fragmentation. Allowed fragmentation
 	types are <cf/dont_fragment/, <cf/is_fragment/, <cf/first_fragment/,
-	<cf/last_fragment/ (e.g. <cf>fragment is_fragment &&
+	<cf/last_fragment/ (e.g. <cf>fragment is_fragment &amp;&amp;
 	!dont_fragment</cf>).
 </descrip>
 
@@ -6059,13 +6575,14 @@ protocol static {
 </code>
 
 <sect2>Differences for IPv6 Flowspec
+<label id="static-flowspec-ipv6">
 
 <p>Flowspec IPv6 are same as Flowspec IPv4 with a few exceptions.
 <itemize>
 	<item>Prefixes <m/inet6/ can be specified not only with prefix length,
-	but with prefix <cf/offset/ <m/num/ too (e.g.
+	but with prefix <cf/offset/ <m/number/ too (e.g.
 	<cf>::1234:5678:9800:0000/101 offset 64</cf>). Offset means to don't
-	care of <m/num/ first bits.
+	care of <m/number/ first bits.
 	<item>IPv6 Flowspec hasn't mandatory any flowspec component.
 	<item>In IPv6 packets, there is a matching the last next header value
 	for a matching IP protocol number (e.g. <cf>next header 6</cf>).
@@ -6074,19 +6591,19 @@ protocol static {
 </itemize>
 
 <p><descrip>
-	<tag><label id="flow6-dst">dst <m/inet6/ [offset <m/num/]</tag>
+	<tag><label id="flow6-dst">dst <m/inet6/ [offset <m/number/]</tag>
 	Set a matching destination IPv6 prefix (e.g. <cf>dst
 	::1c77:3769:27ad:a11a/128 offset 64</cf>).
 
-	<tag><label id="flow6-src">src <m/inet6/ [offset <m/num/]</tag>
+	<tag><label id="flow6-src">src <m/inet6/ [offset <m/number/]</tag>
 	Set a matching source IPv6 prefix (e.g. <cf>src fe80::/64</cf>).
 
 	<tag><label id="flow6-next-header">next header <m/numbers-match/</tag>
 	Set a matching IP protocol numbers (e.g. <cf>next header != 6</cf>).
 
-	<tag><label id="flow6-label">label <m/bitmask-match/</tag>
-	Set a 20-bit bitmask for matching Flow Label field in IPv6 packets
-	(e.g. <cf>label 0x8e5/0x8e5</cf>).
+	<tag><label id="flow6-label">label <m/numbers-match/</tag>
+	Set numbers for matching the 20-bit Flow Label field in IPv6 packets
+	(e.g. <cf>label != 1234</cf>).
 </descrip>
 
 <p><code>
@@ -6101,12 +6618,13 @@ protocol static {
 		dport = 50;
 		tcp flags 0x03/0x0f && !0/0xff || 0x33/0x33;
 		fragment !is_fragment || !first_fragment;
-		label 0xaaaa/0xaaaa && 0x33/0x33;
+		label > 1111 && != 1234;
 	};
 }
 </code>
 
 <sect1>Per-route options
+<label id="static-per-route-options">
 <p>
 <descrip>
 	<tag><label id="static-route-filter"><m/filter expression/</tag>

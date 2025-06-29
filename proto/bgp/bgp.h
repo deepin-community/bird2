@@ -114,6 +114,7 @@ struct bgp_config {
   int enforce_first_as;			/* Enable check for neighbor AS as first AS in AS_PATH */
   int gr_mode;				/* Graceful restart mode (BGP_GR_*) */
   int llgr_mode;			/* Long-lived graceful restart mode (BGP_LLGR_*) */
+  int auth_type;			/* Authentication type (BGP_AUTH_*) */
   int setkey;				/* Set MD5 password to system SA/SP database */
   u8  local_role;			/* Set peering role with neighbor [RFC 9234] */
   int require_roles;			/* Require configured roles on both sides */
@@ -122,6 +123,10 @@ struct bgp_config {
   /* Times below are in seconds */
   unsigned gr_time;			/* Graceful restart timeout */
   unsigned llgr_time;			/* Long-lived graceful restart stale time */
+  unsigned min_gr_time;			/* Minimum GR timeout */
+  unsigned max_gr_time;			/* Maximum GR timeout */
+  unsigned min_llgr_time;		/* Minimum LLGR stale time */
+  unsigned max_llgr_time;		/* Maximum LLGR stale time */
   unsigned connect_delay_time;		/* Minimum delay between connect attempts */
   unsigned connect_retry_time;		/* Timeout for connect attempts */
   unsigned hold_time;
@@ -135,7 +140,9 @@ struct bgp_config {
   unsigned disable_after_error;		/* Disable the protocol when error is detected */
   u32 disable_after_cease;		/* Disable it when cease is received, bitfield */
 
+  /* Options below must be compared separately in bgp_reconfigure() */
   const char *password;			/* Password used for MD5 authentication */
+  struct ao_config *ao_keys;		/* Keys for TCP-AO authentication */
   net_addr *remote_range;		/* Allowed neighbor range for dynamic BGP */
   const char *dynamic_name;		/* Name pattern for dynamic BGP */
   int dynamic_name_digits;		/* Minimum number of digits for dynamic names */
@@ -146,7 +153,7 @@ struct bgp_config {
   int require_extended_messages;	/* Require remote support for extended messages [RFC 8654] */
   int require_hostname;			/* Require remote support for hostname [draft] */
   int require_gr;			/* Require remote support for graceful restart [RFC 4724] */
-  int require_llgr;			/* Require remote support for long-lived graceful restart [draft] */
+  int require_llgr;			/* Require remote support for long-lived graceful restart [RFC 9494] */
   struct bfd_options *bfd;		/* Use BFD for liveness detection */
 };
 
@@ -160,6 +167,7 @@ struct bgp_channel_config {
   u8 next_hop_self;			/* Always set next hop to local IP address (NH_*) */
   u8 next_hop_keep;			/* Do not modify next hop attribute (NH_*) */
   u8 next_hop_prefer;			/* Prefer global or link-local next hop (NHP_*) */
+  u8 llnh_format;			/* Requested link-local next hop format (LLNH_*) */
   u8 mandatory;				/* Channel is mandatory in capability negotiation */
   u8 gw_mode;				/* How we compute route gateway from next_hop attr, see GW_* */
   u8 secondary;				/* Accept also non-best routes (i.e. RA_ACCEPTED) */
@@ -167,6 +175,8 @@ struct bgp_channel_config {
   u8 gr_able;				/* Allow full graceful restart for the channel */
   u8 llgr_able;				/* Allow full long-lived GR for the channel */
   uint llgr_time;			/* Long-lived graceful restart stale time */
+  uint min_llgr_time;			/* Minimum LLGR stale time */
+  uint max_llgr_time;			/* Maximum LLGR stale time */
   u8 ext_next_hop;			/* Allow both IPv4 and IPv6 next hops */
   u8 require_ext_next_hop;		/* Require remote support of IPv4 NLRI with IPv6 next hops [RFC 8950] */
   u8 add_path;				/* Use ADD-PATH extension [RFC 7911] */
@@ -185,6 +195,10 @@ struct bgp_channel_config {
 #define BGP_PT_INTERNAL		1
 #define BGP_PT_EXTERNAL		2
 
+#define BGP_AUTH_NONE		0
+#define BGP_AUTH_MD5		1
+#define BGP_AUTH_AO		2
+
 #define BGP_ROLE_UNDEFINED 	255
 #define BGP_ROLE_PROVIDER 	0
 #define BGP_ROLE_RS_SERVER 	1
@@ -200,6 +214,10 @@ struct bgp_channel_config {
 #define MLL_SELF		1
 #define MLL_DROP		2
 #define MLL_IGNORE		3
+
+#define LLNH_NATIVE		0
+#define LLNH_SINGLE		1
+#define LLNH_DOUBLE		2
 
 #define GW_DIRECT		1
 #define GW_RECURSIVE		2
@@ -241,7 +259,7 @@ struct bgp_af_caps {
   u8 ready;				/* Multiprotocol capability, RFC 4760 */
   u8 gr_able;				/* Graceful restart support, RFC 4724 */
   u8 gr_af_flags;			/* Graceful restart per-AF flags */
-  u8 llgr_able;				/* Long-lived GR, RFC draft */
+  u8 llgr_able;				/* Long-lived GR, RFC 9494 */
   u32 llgr_time;			/* Long-lived GR stale time */
   u8 llgr_flags;			/* Long-lived GR per-AF flags */
   u8 ext_next_hop;			/* Extended IPv6 next hop,   RFC 8950 */
@@ -261,7 +279,7 @@ struct bgp_caps {
   u8 gr_flags;				/* Graceful restart flags */
   u16 gr_time;				/* Graceful restart time in seconds */
 
-  u8 llgr_aware;			/* Long-lived GR capability, RFC draft */
+  u8 llgr_aware;			/* Long-lived GR capability, RFC 9494 */
   u8 any_ext_next_hop;			/* Bitwise OR of per-AF ext_next_hop */
   u8 any_add_path;			/* Bitwise OR of per-AF add_path */
 
@@ -276,6 +294,18 @@ struct bgp_caps {
 #define WALK_AF_CAPS(caps,ac) \
   for (ac = caps->af_data; ac < &caps->af_data[caps->af_count]; ac++)
 
+
+struct bgp_ao_key {
+  node n;				/* Node in bgp_ao_state.keys */
+  struct ao_key key;
+  u32 active:1;
+  u32 failed:1;
+};
+
+struct bgp_ao_state {
+  list keys;				/* List of TCP-AO keys (struct bgp_ao_key) */
+  struct bgp_ao_key *best_key;
+};
 
 struct bgp_socket {
   node n;				/* Node in global bgp_sockets */
@@ -324,6 +354,7 @@ struct bgp_conn {
 struct bgp_proto {
   struct proto p;
   const struct bgp_config *cf;		/* Shortcut to BGP configuration */
+  const char *hostname;      /* Hostname for this BGP protocol */
   ip_addr local_ip, remote_ip;
   u32 local_as, remote_as;
   u32 public_as;			/* Externally visible ASN (local_as or confederation id) */
@@ -355,6 +386,7 @@ struct bgp_proto {
   struct bgp_socket *sock;		/* Shared listening socket */
   struct bfd_request *bfd_req;		/* BFD request, if BFD is used */
   struct birdsock *postponed_sk;	/* Postponed incoming socket for dynamic BGP */
+  struct bgp_ao_state ao;
   struct bgp_stats stats;		/* BGP statistics */
   btime last_established;		/* Last time of enter/leave of established state */
   btime last_rx_update;			/* Last time of RX update */
@@ -451,8 +483,10 @@ struct bgp_write_state {
   int mp_reach;
   int as4_session;
   int add_path;
+  int llnh_format;
   int mpls;
   int sham;
+  int ignore_non_bgp_attrs;
 
   eattr *mp_next_hop;
   const adata *mpls_labels;
@@ -650,7 +684,7 @@ int bgp_get_attr(const struct eattr *e, byte *buf, int buflen);
 void bgp_get_route_info(struct rte *, byte *buf);
 int bgp_total_aigp_metric_(rte *e, u64 *metric, const struct adata **ad);
 
-byte * bgp_bmp_encode_rte(struct bgp_channel *c, byte *buf, const net_addr *n, const struct rte *new, const struct rte_src *src);
+byte * bgp_bmp_encode_rte(struct bgp_channel *c, byte *buf, byte *end, const net_addr *n, const struct rte *new, const struct rte_src *src);
 
 #define BGP_AIGP_METRIC		1
 #define BGP_AIGP_MAX		U64(0xffffffffffffffff)
@@ -791,7 +825,7 @@ byte *bgp_create_end_mark_(struct bgp_channel *c, byte *buf);
 
 #define BEM_NEIGHBOR_LOST	1
 #define BEM_INVALID_NEXT_HOP	2
-#define BEM_INVALID_MD5		3	/* MD5 authentication kernel request failed (possibly not supported) */
+#define BEM_INVALID_AUTH	3	/* Authentication kernel request failed (possibly not supported) */
 #define BEM_NO_SOCKET		4
 #define BEM_LINK_DOWN		5
 #define BEM_BFD_DOWN		6

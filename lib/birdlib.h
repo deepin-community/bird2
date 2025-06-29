@@ -10,20 +10,22 @@
 #define _BIRD_BIRDLIB_H_
 
 #include "lib/alloca.h"
+#include <stddef.h>
+#include <stdarg.h>
+#include <stdalign.h>
 
 /* Ugly structure offset handling macros */
-
-struct align_probe { char x; long int y; };
 
 #define OFFSETOF(s, i) ((size_t) &((s *)0)->i)
 #define SKIP_BACK(s, i, p) ((s *)((char *)p - OFFSETOF(s, i)))
 #define BIRD_ALIGN(s, a) (((s)+a-1)&~(a-1))
-#define CPU_STRUCT_ALIGN (sizeof(struct align_probe))
+#define CPU_STRUCT_ALIGN (alignof(max_align_t))
 
 /* Utility macros */
 
 #define MIN_(a,b) (((a)<(b))?(a):(b))
 #define MAX_(a,b) (((a)>(b))?(a):(b))
+#define CLAMP(a,l,h) (((a)<(l)) ? (l) : (((a)>(h)) ? (h) : (a)))
 
 #ifndef PARSER
 #undef MIN
@@ -75,7 +77,18 @@ static inline int u64_cmp(u64 i1, u64 i2)
 #define NORET __attribute__((noreturn))
 #define UNUSED __attribute__((unused))
 #define PACKED __attribute__((packed))
-#define NONNULL(...) __attribute__((nonnull((__VA_ARGS__))))
+#define NONNULL(...) __attribute__((nonnull(__VA_ARGS__)))
+#define ALLOC_SIZE(...) __attribute__((alloc_size(__VA_ARGS__)))
+
+#if __GNUC__ >= 10
+#define ACCESS_READ(...) __attribute__((access(read_only, __VA_ARGS__)))
+#define ACCESS_WRITE(...) __attribute__((access(write_only, __VA_ARGS__)))
+#define ACCESS_RW(...) __attribute__((access(read_write, __VA_ARGS__)))
+#else
+#define ACCESS_READ(...)
+#define ACCESS_WRITE(...)
+#define ACCESS_RW(...)
+#endif
 
 #define STATIC_ASSERT(EXP) _Static_assert(EXP, #EXP)
 #define STATIC_ASSERT_MSG(EXP,MSG) _Static_assert(EXP, MSG)
@@ -148,6 +161,7 @@ void log_msg(const char *msg, ...);
 void log_rl(struct tbf *rl, const char *msg, ...);
 void die(const char *msg, ...) NORET;
 void bug(const char *msg, ...) NORET;
+void vlog(int class, const char *msg, va_list args);
 
 #define L_DEBUG "\001"			/* Debugging messages */
 #define L_TRACE "\002"			/* Protocol tracing */
@@ -158,6 +172,7 @@ void bug(const char *msg, ...) NORET;
 #define L_AUTH "\007"			/* Authorization failed etc. */
 #define L_FATAL "\010"			/* Fatal errors */
 #define L_BUG "\011"			/* BIRD bugs */
+#define L_MAX 10
 
 void debug(const char *msg, ...);	/* Printf to debug output */
 void debug_safe(const char *msg);	/* Printf to debug output, async-safe */
@@ -228,5 +243,16 @@ static inline u64 u64_hash0(u64 v, u32 p, u64 acc)
 
 static inline u32 u64_hash(u64 v)
 { return hash_value(u64_hash0(v, HASH_PARAM, 0)); }
+
+/* Dumping */
+struct dump_request {
+  u64 size;
+  btime begin;
+  uint indent, offset;
+  void (*write)(struct dump_request *, const char *fmt, ...);
+  void (*report)(struct dump_request *, int state, const char *fmt, ...);
+};
+
+#define RDUMP(...)  dreq->write(dreq, __VA_ARGS__)
 
 #endif

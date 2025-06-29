@@ -788,6 +788,11 @@ nl_parse_multipath(struct nl_parse_state *s, struct krt_proto *p, const net_addr
 
       if (ipa_nonzero(rv->gw))
 	{
+#ifdef CONFIG_ASSUME_ONLINK
+	  if (krt_assume_onlink(rv->iface, ipa_is_ip6(rv->gw)))
+	    rv->flags |= RNF_ONLINK;
+#endif
+
 	  neighbor *nbr;
 	  nbr = neigh_find(&p->p, rv->gw, rv->iface,
 			   (rv->flags & RNF_ONLINK) ? NEF_ONLINK : 0);
@@ -1465,8 +1470,24 @@ done:
 }
 
 static inline int
-nl_allow_replace(struct krt_proto *p, rte *new)
+nl_allow_replace(struct krt_proto *p, rte *new, rte *old)
 {
+  /*
+   * In kernel routing tables, (net, metric) is the primary key. Therefore, we
+   * can use NL_OP_REPLACE only if the new and and the old route have the same
+   * kernel metric, otherwise the replace would just add the new route while
+   * keep the old one.
+   */
+
+  if ((p->af != AF_MPLS) && (KRT_CF->sys.metric == 0))
+  {
+    uint new_metric = ea_get_int(new->attrs->eattrs, EA_KRT_METRIC, 0);
+    uint old_metric = ea_get_int(old->attrs->eattrs, EA_KRT_METRIC, 0);
+
+    if (new_metric != old_metric)
+      return 0;
+  }
+
   /*
    * We use NL_OP_REPLACE for IPv4, it has an issue with not checking for
    * matching rtm_protocol, but that is OK when dedicated priority is used.
@@ -1495,7 +1516,7 @@ krt_replace_rte(struct krt_proto *p, net *n UNUSED, rte *new, rte *old)
 {
   int err = 0;
 
-  if (old && new && nl_allow_replace(p, new))
+  if (old && new && nl_allow_replace(p, new, old))
   {
     err = nl_send_route(p, new, NL_OP_REPLACE);
   }
@@ -1722,6 +1743,11 @@ nl_parse_route(struct nl_parse_state *s, struct nlmsghdr *h)
 	  const net_addr_ip6 sit = NET_ADDR_IP6(IP6_NONE, 96);
 	  if ((i->rtm_family == AF_INET6) && ipa_in_netX(ra->nh.gw, (net_addr *) &sit))
 	    return;
+
+#ifdef CONFIG_ASSUME_ONLINK
+	  if (krt_assume_onlink(ra->nh.iface, ipa_is_ip6(ra->nh.gw)))
+	    ra->nh.flags |= RNF_ONLINK;
+#endif
 
 	  neighbor *nbr;
 	  nbr = neigh_find(&p->p, ra->nh.gw, ra->nh.iface,

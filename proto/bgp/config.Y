@@ -15,6 +15,9 @@ CF_DEFINES
 #define BGP_CFG ((struct bgp_config *) this_proto)
 #define BGP_CC ((struct bgp_channel_config *) this_channel)
 
+static struct ao_config *this_ao_key;
+static struct ao_config **next_ao_key;
+
 CF_DECLS
 
 CF_KEYWORDS(BGP, LOCAL, NEIGHBOR, AS, HOLD, TIME, CONNECT, RETRY, KEEPALIVE,
@@ -32,16 +35,19 @@ CF_KEYWORDS(BGP, LOCAL, NEIGHBOR, AS, HOLD, TIME, CONNECT, RETRY, KEEPALIVE,
 	LIVED, STALE, IMPORT, IBGP, EBGP, MANDATORY, INTERNAL, EXTERNAL, SETS,
 	DYNAMIC, RANGE, NAME, DIGITS, BGP_AIGP, AIGP, ORIGINATE, COST, ENFORCE,
 	FIRST, FREE, VALIDATE, BASE, ROLE, ROLES, PEER, PROVIDER, CUSTOMER,
-	RS_SERVER, RS_CLIENT, REQUIRE, BGP_OTC, GLOBAL, SEND)
+	RS_SERVER, RS_CLIENT, REQUIRE, BGP_OTC, GLOBAL, SEND, RECV, MIN, MAX,
+	AUTHENTICATION, NONE, MD5, AO, FORMAT, NATIVE, SINGLE, DOUBLE)
 
-%type <i> bgp_nh
+CF_KEYWORDS(KEY, KEYS, SECRET, DEPRECATED, PREFERRED, ALGORITHM, CMAC, AES128)
+
+%type <i> bgp_nh bgp_llnh bgp_auth_type bgp_role_name tcp_ao_algorithm
 %type <i32> bgp_afi
 
 CF_KEYWORDS(CEASE, PREFIX, LIMIT, HIT, ADMINISTRATIVE, SHUTDOWN, RESET, PEER,
 	CONFIGURATION, CHANGE, DECONFIGURED, CONNECTION, REJECTED, COLLISION,
-	OUT, OF, RESOURCES)
+	OUT, OF, RESOURCES, ASPA_CHECK_UPSTREAM, ASPA_CHECK_DOWNSTREAM)
 
-%type<i> bgp_cease_mask bgp_cease_list bgp_cease_flag bgp_role_name
+%type<i> bgp_cease_mask bgp_cease_list bgp_cease_flag
 
 CF_GRAMMAR
 
@@ -71,8 +77,12 @@ bgp_proto_start: proto_start BGP {
      BGP_CFG->default_local_pref = 100;
      BGP_CFG->gr_mode = BGP_GR_AWARE;
      BGP_CFG->gr_time = 120;
+     BGP_CFG->min_gr_time = 0;
+     BGP_CFG->max_gr_time = ~0U;
      BGP_CFG->llgr_mode = -1;
      BGP_CFG->llgr_time = 3600;
+     BGP_CFG->min_llgr_time = 0;
+     BGP_CFG->max_llgr_time = ~0U;
      BGP_CFG->setkey = 1;
      BGP_CFG->local_role = BGP_ROLE_UNDEFINED;
      BGP_CFG->dynamic_name = "dynbgp";
@@ -116,6 +126,12 @@ bgp_cease_flag:
  | CONFIGURATION CHANGE		{ $$ = 1 << 6; }
  | CONNECTION COLLISION		{ $$ = 1 << 7; }
  | OUT OF RESOURCES		{ $$ = 1 << 8; }
+ ;
+
+bgp_auth_type:
+   NONE		{ $$ = BGP_AUTH_NONE; }
+ | MD5		{ $$ = BGP_AUTH_MD5; }
+ | AO		{ $$ = BGP_AUTH_AO; }
  ;
 
 bgp_role_name:
@@ -201,6 +217,8 @@ bgp_proto:
  | bgp_proto REQUIRE GRACEFUL RESTART bool ';' { BGP_CFG->require_gr = $5; }
  | bgp_proto REQUIRE LONG LIVED GRACEFUL RESTART bool ';' { BGP_CFG->require_llgr = $7; }
  | bgp_proto CAPABILITIES bool ';' { BGP_CFG->capabilities = $3; }
+ | bgp_proto AUTHENTICATION bgp_auth_type ';' { BGP_CFG->auth_type = $3; }
+ | bgp_proto KEYS tcp_ao_key_list ';' tcp_ao_end
  | bgp_proto PASSWORD text ';' { BGP_CFG->password = $3; }
  | bgp_proto SETKEY bool ';' { BGP_CFG->setkey = $3; }
  | bgp_proto PASSIVE bool ';' { BGP_CFG->passive = $3; }
@@ -212,10 +230,14 @@ bgp_proto:
  | bgp_proto ALLOW AS SETS bool ';' { BGP_CFG->allow_as_sets = $5; }
  | bgp_proto GRACEFUL RESTART bool ';' { BGP_CFG->gr_mode = $4; }
  | bgp_proto GRACEFUL RESTART AWARE ';' { BGP_CFG->gr_mode = BGP_GR_AWARE; }
- | bgp_proto GRACEFUL RESTART TIME expr ';' { BGP_CFG->gr_time = $5; }
+ | bgp_proto GRACEFUL RESTART TIME expr ';' { BGP_CFG->gr_time = $5; if ($5 >= (1 << 12)) cf_error("Graceful restart time must be less than 4096"); }
+ | bgp_proto MIN GRACEFUL RESTART TIME expr ';' { BGP_CFG->min_gr_time = $6; if ($6 >= (1 << 12)) cf_error("Min graceful restart time must be less than 4096"); }
+ | bgp_proto MAX GRACEFUL RESTART TIME expr ';' { BGP_CFG->max_gr_time = $6; if ($6 >= (1 << 12)) cf_error("Max graceful restart time must be less than 4096"); }
  | bgp_proto LONG LIVED GRACEFUL RESTART bool ';' { BGP_CFG->llgr_mode = $6; }
  | bgp_proto LONG LIVED GRACEFUL RESTART AWARE ';' { BGP_CFG->llgr_mode = BGP_LLGR_AWARE; }
- | bgp_proto LONG LIVED STALE TIME expr ';' { BGP_CFG->llgr_time = $6; }
+ | bgp_proto LONG LIVED STALE TIME expr ';' { BGP_CFG->llgr_time = $6; if ($6 >= (1 << 24)) cf_error("Long-lived stale time must be less than 2^24"); }
+ | bgp_proto MIN LONG LIVED STALE TIME expr ';' { BGP_CFG->min_llgr_time = $7; if ($7 >= (1 << 24)) cf_error("Min long-lived stale time must be less than 2^24"); }
+ | bgp_proto MAX LONG LIVED STALE TIME expr ';' { BGP_CFG->max_llgr_time = $7; if ($7 >= (1 << 24)) cf_error("Max long-lived stale time must be less than 2^24"); }
  | bgp_proto TTL SECURITY bool ';' { BGP_CFG->ttl_security = $4; }
  | bgp_proto CHECK LINK bool ';' { BGP_CFG->check_link = $4; }
  | bgp_proto BFD bool ';' { if ($3) init_bfd_opts(&BGP_CFG->bfd); else BGP_CFG->bfd = NULL; }
@@ -242,6 +264,118 @@ bgp_afi:
  | FLOW6		{ $$ = BGP_AF_FLOW6; }
  ;
 
+tcp_ao_key_start: KEY {
+  this_ao_key = cfg_allocz(sizeof(struct ao_config));
+  *next_ao_key = this_ao_key;
+  next_ao_key = &(this_ao_key->next);
+
+  this_ao_key->key.send_id = -1;
+  this_ao_key->key.recv_id = -1;
+  this_ao_key->key.algorithm = ALG_HMAC_SHA1;
+}
+
+tcp_ao_key_opt:
+   ID expr ';' {
+     if ($2 > 255)
+       cf_error("Key ID must be in range 0-255");
+     this_ao_key->key.send_id = $2;
+     this_ao_key->key.recv_id = $2;
+   }
+ | SEND ID expr ';' {
+     if ($3 > 255)
+       cf_error("Send ID must be in range 0-255");
+     this_ao_key->key.send_id = $3;
+   }
+ | RECV ID expr ';' {
+     if ($3 > 255)
+       cf_error("Recv ID must be in range 0-255");
+     this_ao_key->key.recv_id = $3;
+   }
+ | ALGORITHM tcp_ao_algorithm ';' {
+     if (!tcp_ao_alg_known($2))
+       cf_error("Unknown algorithm for TCP-AO");
+     this_ao_key->key.algorithm = $2;
+   }
+ | SECRET bytestring_text ';' {
+     if ($2.type == T_BYTESTRING)
+     {
+       this_ao_key->key.key = $2.val.bs->data;
+       this_ao_key->key.keylen = $2.val.bs->length;
+     }
+     else if ($2.type == T_STRING)
+     {
+       this_ao_key->key.key = $2.val.s;
+       this_ao_key->key.keylen = strlen($2.val.s);
+     }
+     else bug("Bad bytestring_text");
+
+     if (this_ao_key->key.keylen > AO_MAX_KEY_LENGTH)
+       cf_error("TCP-AO secret too long");
+   }
+ | DEPRECATED ';' {
+     if (this_ao_key->key.preference > 0)
+       cf_error("Key cannot be both preferred and deprecated");
+     this_ao_key->key.preference = -1;
+   }
+ | PREFERRED ';' {
+     if (this_ao_key->key.preference < 0)
+       cf_error("Key cannot be both preferred and deprecated");
+     this_ao_key->key.preference = 1;
+   }
+ ;
+
+tcp_ao_algorithm:
+   password_algorithm { $$ = $1; }
+ | CMAC AES128 { $$ = ALG_CMAC_AES128_AO; }
+ ;
+
+tcp_ao_key_opts:
+   /* empty */
+ | tcp_ao_key_opts tcp_ao_key_opt
+ ;
+
+tcp_ao_key_end: {
+  struct ao_config *key = this_ao_key;
+  this_ao_key = NULL;
+
+  if (key->key.send_id == -1)
+    cf_error("No key Send ID");
+  if (key->key.recv_id == -1)
+    cf_error("No key Recv ID");
+  if (!key->key.key || !key->key.keylen)
+    cf_error("No secret defined for key %i/%i", key->key.send_id, key->key.recv_id);
+}
+
+tcp_ao_key: tcp_ao_key_start '{' tcp_ao_key_opts '}' tcp_ao_key_end;
+
+tcp_ao_keys:
+   /* empty */
+ | tcp_ao_keys tcp_ao_key ';' { }
+ ;
+
+tcp_ao_key_list:
+   '{' { next_ao_key = &(BGP_CFG->ao_keys); } tcp_ao_keys '}' { next_ao_key = NULL; };
+ ;
+
+tcp_ao_end:
+{
+  char used_aos_id_send[256];
+  char used_aos_id_recv[256];
+  memset(used_aos_id_send, 0, sizeof(char)*256);
+  memset(used_aos_id_recv, 0, sizeof(char)*256);
+
+  for (struct ao_config *key = BGP_CFG->ao_keys; key; key = key->next)
+  {
+    if (used_aos_id_send[key->key.send_id])
+      cf_error("Multiple keys with Send ID %i", key->key.send_id);
+    used_aos_id_send[key->key.send_id] = 1;
+
+    if (used_aos_id_recv[key->key.recv_id])
+      cf_error("Multiple keys with Recv ID %i", key->key.recv_id);
+    used_aos_id_recv[key->key.recv_id] = 1;
+  }
+}
+
 bgp_channel_start: bgp_afi
 {
   const struct bgp_af_desc *desc = bgp_get_af_desc($1);
@@ -263,6 +397,8 @@ bgp_channel_start: bgp_afi
     BGP_CC->gr_able = 0xff;	/* undefined */
     BGP_CC->llgr_able = 0xff;	/* undefined */
     BGP_CC->llgr_time = ~0U;	/* undefined */
+    BGP_CC->min_llgr_time = ~0U; /* undefined */
+    BGP_CC->max_llgr_time = ~0U; /* undefined */
     BGP_CC->aigp = 0xff;	/* undefined */
   }
 };
@@ -271,6 +407,13 @@ bgp_nh:
    bool { $$ = $1; }
  | IBGP { $$ = NH_IBGP; }
  | EBGP { $$ = NH_EBGP; }
+ ;
+
+bgp_llnh:
+   NATIVE { $$ = LLNH_NATIVE; }
+ | SINGLE { $$ = LLNH_SINGLE; }
+ | DOUBLE { $$ = LLNH_DOUBLE; }
+ ;
 
 bgp_lladdr: SELF | DROP | IGNORE;
 
@@ -280,6 +423,7 @@ bgp_channel_item:
  | NEXT HOP SELF bgp_nh { BGP_CC->next_hop_self = $4; }
  | NEXT HOP KEEP bgp_nh { BGP_CC->next_hop_keep = $4; }
  | NEXT HOP PREFER GLOBAL { BGP_CC->next_hop_prefer = NHP_GLOBAL; }
+ | LINK LOCAL NEXT HOP FORMAT bgp_llnh { BGP_CC->llnh_format = $6; }
  | MANDATORY bool { BGP_CC->mandatory = $2; }
  | MISSING LLADDR bgp_lladdr { cf_warn("%s.%s: Missing lladdr option is deprecated and ignored, remove it", this_proto->name, this_channel->name); }
  | GATEWAY DIRECT { BGP_CC->gw_mode = GW_DIRECT; }
@@ -292,7 +436,9 @@ bgp_channel_item:
    }
  | GRACEFUL RESTART bool { BGP_CC->gr_able = $3; }
  | LONG LIVED GRACEFUL RESTART bool { BGP_CC->llgr_able = $5; }
- | LONG LIVED STALE TIME expr { BGP_CC->llgr_time = $5; }
+ | LONG LIVED STALE TIME expr { BGP_CC->llgr_time = $5; if ($5 >= (1 << 24)) cf_error("Long-lived stale time must be less than 2^24"); }
+ | MIN LONG LIVED STALE TIME expr { BGP_CC->min_llgr_time = $6; if ($6 >= (1 << 24)) cf_error("Min long-lived stale time must be less than 2^24"); }
+ | MAX LONG LIVED STALE TIME expr { BGP_CC->max_llgr_time = $6; if ($6 >= (1 << 24)) cf_error("Max long-lived stale time must be less than 2^24"); }
  | EXTENDED NEXT HOP bool { BGP_CC->ext_next_hop = $4; }
  | REQUIRE EXTENDED NEXT HOP bool { BGP_CC->require_ext_next_hop = $5;  if (BGP_AFI(BGP_CC->afi) != BGP_AFI_IPV4) cf_warn("Require extended next hop option ignored for non-IPv4 channels"); }
  | ADD PATHS RX { BGP_CC->add_path = BGP_ADD_PATH_RX; }
@@ -392,6 +538,29 @@ custom_attr: ATTRIBUTE BGP expr type symbol ';' {
 };
 
 CF_ENUM(T_ENUM_BGP_ORIGIN, ORIGIN_, IGP, EGP, INCOMPLETE)
+
+/* ASPA shortcuts */
+term: ASPA_CHECK_DOWNSTREAM '(' rtable ')' { $$ =
+  f_new_inst(FI_ASPA_CHECK_EXPLICIT,
+      f_new_inst(FI_EA_GET,
+	f_new_inst(FI_CONSTANT, (struct f_val) { .type = T_ROUTE, .val.rte = NULL, }),
+	f_new_dynamic_attr(EAF_TYPE_AS_PATH, T_PATH, EA_CODE(PROTOCOL_BGP, BA_AS_PATH))
+      ),
+      f_new_inst(FI_CONSTANT, (struct f_val) { .type = T_BOOL, .val.i = 0, }),
+      $3
+  );
+}
+
+term: ASPA_CHECK_UPSTREAM '(' rtable ')' { $$ =
+  f_new_inst(FI_ASPA_CHECK_EXPLICIT,
+      f_new_inst(FI_EA_GET,
+	f_new_inst(FI_CONSTANT, (struct f_val) { .type = T_ROUTE, .val.rte = NULL, }),
+	f_new_dynamic_attr(EAF_TYPE_AS_PATH, T_PATH, EA_CODE(PROTOCOL_BGP, BA_AS_PATH))
+      ),
+      f_new_inst(FI_CONSTANT, (struct f_val) { .type = T_BOOL, .val.i = 1, }),
+      $3
+  );
+}
 
 CF_CODE
 

@@ -281,11 +281,11 @@ bgp_prepare_capabilities(struct bgp_conn *conn)
   if (p->cf->llgr_mode)
     caps->llgr_aware = 1;
 
-  if (p->cf->enable_hostname && config->hostname)
+  if (p->cf->enable_hostname && p->hostname)
   {
-    size_t length = strlen(config->hostname);
+    size_t length = strlen(p->hostname);
     char *hostname = mb_allocz(p->p.pool, length+1);
-    memcpy(hostname, config->hostname, length+1);
+    memcpy(hostname, p->hostname, length+1);
     caps->hostname = hostname;
   }
 
@@ -627,7 +627,7 @@ bgp_read_capabilities(struct bgp_conn *conn, byte *pos, int len)
       caps->enhanced_refresh = 1;
       break;
 
-    case 71: /* Long lived graceful restart capability, RFC draft */
+    case 71: /* Long lived graceful restart capability, RFC 9494 */
       if (cl % 7)
 	goto err;
 
@@ -1314,6 +1314,37 @@ bgp_update_next_hop_ip(struct bgp_export_state *s, eattr *a, ea_list **to)
 }
 
 static uint
+bgp_prepare_link_local_next_hop(struct bgp_write_state *s, ip_addr *nh)
+{
+  /*
+   * We have link-local next-hop in nh[1]
+   *
+   * Possible variants:
+   * [ ::, fe80::XX ] - BIRD's default/internal (LLNH_NATIVE)
+   * [ fe80::XX ] - draft-white-linklocal-capability (LLNH_SINGLE)
+   * [ fe80::XX, fe80::XX ] - Used in JunoOS (LLNH_DOUBLE)
+   */
+
+  switch (s->llnh_format)
+  {
+  case LLNH_NATIVE:
+    return 32;
+
+  case LLNH_SINGLE:
+    nh[0] = nh[1];
+    return 16;
+
+  case LLNH_DOUBLE:
+    nh[0] = nh[1];
+    return 32;
+
+  default:
+    ASSERT(0);
+    return 32;
+  }
+}
+
+static uint
 bgp_encode_next_hop_ip(struct bgp_write_state *s, eattr *a, byte *buf, uint size UNUSED)
 {
   /* This function is used only for MP-BGP, see bgp_encode_next_hop() for IPv4 BGP */
@@ -1333,6 +1364,13 @@ bgp_encode_next_hop_ip(struct bgp_write_state *s, eattr *a, byte *buf, uint size
   {
     put_ip4(buf, ipa_to_ip4(nh[0]));
     return 4;
+  }
+
+  /* Handle variants of link-local-only next hop */
+  if (ipa_zero(nh[0]) && (len == 32))
+  {
+    nh = alloca_copy(nh, 32);
+    len = bgp_prepare_link_local_next_hop(s, nh);
   }
 
   put_ip6(buf, ipa_to_ip6(nh[0]));
@@ -1411,6 +1449,13 @@ bgp_encode_next_hop_vpn(struct bgp_write_state *s, eattr *a, byte *buf, uint siz
     return 12;
   }
 
+  /* Handle variants of link-local-only next hop */
+  if (ipa_zero(nh[0]) && (len == 32))
+  {
+    nh = alloca_copy(nh, 32);
+    len = bgp_prepare_link_local_next_hop(s, nh);
+  }
+
   put_u64(buf, 0); /* VPN RD is 0 */
   put_ip6(buf+8, ipa_to_ip6(nh[0]));
 
@@ -1448,6 +1493,9 @@ bgp_decode_next_hop_vpn(struct bgp_parse_state *s, byte *data, uint len, rta *a)
     nh[0] = ipa_from_ip6(get_ip6(data+8));
     nh[1] = ipa_from_ip6(get_ip6(data+32));
 
+    if (ipa_is_link_local(nh[0]))
+    { nh[1] = nh[0]; nh[0] = IPA_NONE; }
+
     if (ipa_is_ip4(nh[0]) || !ip6_is_link_local(nh[1]))
       nh[1] = IPA_NONE;
   }
@@ -1484,7 +1532,7 @@ bgp_decode_next_hop_none(struct bgp_parse_state *s UNUSED, byte *data UNUSED, ui
   /*
    * Although we expect no next hop and RFC 7606 7.11 states that attribute
    * MP_REACH_NLRI with unexpected next hop length is considered malformed,
-   * FlowSpec RFC 5575 4 states that next hop shall be ignored on receipt.
+   * FlowSpec RFC 8955 4 states that next hop shall be ignored on receipt.
    */
 
   return;
@@ -1807,7 +1855,7 @@ bgp_encode_nlri_vpn4(struct bgp_write_state *s, struct bgp_bucket *buck, byte *b
       bgp_encode_mpls_labels(s, s->mpls_labels, &pos, &size, pos - 1);
 
     /* Encode route distinguisher */
-    put_u64(pos, net->rd);
+    put_rd(pos, net->rd);
     ADVANCE(pos, size, 8);
 
     /* Encode prefix body */
@@ -1858,7 +1906,7 @@ bgp_decode_nlri_vpn4(struct bgp_parse_state *s, byte *pos, uint len, rta *a)
     if (l < 64)
       bgp_parse_error(s, 1);
 
-    u64 rd = get_u64(pos);
+    vpn_rd rd = get_rd(pos);
     ADVANCE(pos, len, 8);
     l -= 64;
 
@@ -1907,7 +1955,7 @@ bgp_encode_nlri_vpn6(struct bgp_write_state *s, struct bgp_bucket *buck, byte *b
       bgp_encode_mpls_labels(s, s->mpls_labels, &pos, &size, pos - 1);
 
     /* Encode route distinguisher */
-    put_u64(pos, net->rd);
+    put_rd(pos, net->rd);
     ADVANCE(pos, size, 8);
 
     /* Encode prefix body */
@@ -1958,7 +2006,7 @@ bgp_decode_nlri_vpn6(struct bgp_parse_state *s, byte *pos, uint len, rta *a)
     if (l < 64)
       bgp_parse_error(s, 1);
 
-    u64 rd = get_u64(pos);
+    vpn_rd rd = get_rd(pos);
     ADVANCE(pos, len, 8);
     l -= 64;
 
@@ -2482,12 +2530,10 @@ bgp_create_mp_unreach(struct bgp_write_state *s, struct bgp_bucket *buck, byte *
 #ifdef CONFIG_BMP
 
 static byte *
-bgp_create_update_bmp(struct bgp_channel *c, byte *buf, struct bgp_bucket *buck, bool update)
+bgp_create_update_bmp(struct bgp_channel *c, byte *buf, byte *end, struct bgp_bucket *buck, bool update)
 {
   struct bgp_proto *p = (void *) c->c.proto;
-  byte *end = buf + (BGP_MAX_EXT_MSG_LENGTH - BGP_HEADER_LENGTH);
   byte *res = NULL;
-  /* FIXME: must be a bit shorter */
 
   struct lp_state tmpp;
   lp_save(tmp_linpool, &tmpp);
@@ -2524,23 +2570,11 @@ bgp_create_update_bmp(struct bgp_channel *c, byte *buf, struct bgp_bucket *buck,
   return res;
 }
 
-static byte *
-bgp_bmp_prepare_bgp_hdr(byte *buf, const u16 msg_size, const u8 msg_type)
-{
-  memset(buf + BGP_MSG_HDR_MARKER_POS, 0xff, BGP_MSG_HDR_MARKER_SIZE);
-  put_u16(buf + BGP_MSG_HDR_LENGTH_POS, msg_size);
-  put_u8(buf + BGP_MSG_HDR_TYPE_POS, msg_type);
-
-  return buf + BGP_MSG_HDR_TYPE_POS + BGP_MSG_HDR_TYPE_SIZE;
-}
-
 byte *
-bgp_bmp_encode_rte(struct bgp_channel *c, byte *buf, const net_addr *n,
+bgp_bmp_encode_rte(struct bgp_channel *c, byte *buf, byte *end, const net_addr *n,
 		   const struct rte *new, const struct rte_src *src)
 {
 //  struct bgp_proto *p = (void *) c->c.proto;
-  byte *pkt = buf + BGP_HEADER_LENGTH;
-
   ea_list *attrs = new ? new->attrs->eattrs : NULL;
   uint ea_size = new ? (sizeof(ea_list) + attrs->count * sizeof(eattr)) : 0;
   uint bucket_size = sizeof(struct bgp_bucket) + ea_size;
@@ -2561,12 +2595,7 @@ bgp_bmp_encode_rte(struct bgp_channel *c, byte *buf, const net_addr *n,
   net_copy(px->net, n);
   add_tail(&b->prefixes, &px->buck_node);
 
-  byte *end = bgp_create_update_bmp(c, pkt, b, !!new);
-
-  if (end)
-    bgp_bmp_prepare_bgp_hdr(buf, end - buf, PKT_UPDATE);
-
-  return end;
+  return bgp_create_update_bmp(c, buf, end, b, !!new);
 }
 
 #endif /* CONFIG_BMP */
@@ -2593,6 +2622,7 @@ again: ;
     .mp_reach = (c->afi != BGP_AF_IPV4) || c->ext_next_hop,
     .as4_session = p->as4_session,
     .add_path = c->add_path_tx,
+    .llnh_format = c->cf->llnh_format,
     .mpls = c->desc->mpls,
   };
 
@@ -3290,7 +3320,7 @@ static struct {
   { 6, 8, "Out of Resources" },
   { 7, 0, "Invalid ROUTE-REFRESH message" }, /* [RFC7313] */
   { 7, 1, "Invalid ROUTE-REFRESH message length" }, /* [RFC7313] */
-  { 8, 0, "Send hold timer expired" }, /* [draft-ietf-idr-bgp-sendholdtimer] */
+  { 8, 0, "Send hold timer expired" }, /* [RFC9687] */
 };
 
 /**
@@ -3315,7 +3345,7 @@ bgp_error_dsc(uint code, uint subcode)
   return buff;
 }
 
-/* RFC 8203 - shutdown communication message */
+/* RFC 9003 - shutdown communication message */
 static int
 bgp_handle_message(struct bgp_proto *p, byte *data, uint len, byte **bp)
 {
@@ -3370,7 +3400,7 @@ bgp_log_error(struct bgp_proto *p, u8 class, char *msg, uint code, uint subcode,
 	  goto done;
         }
 
-      /* RFC 8203 - shutdown communication */
+      /* RFC 9003 - shutdown communication */
       if (((code == 6) && ((subcode == 2) || (subcode == 4))))
 	if (bgp_handle_message(p, data, len, &t))
 	  goto done;
@@ -3491,6 +3521,7 @@ int
 bgp_rx(sock *sk, uint size)
 {
   struct bgp_conn *conn = sk->data;
+
   byte *pkt_start = sk->rbuf;
   byte *end = pkt_start + size;
   uint i, len;
