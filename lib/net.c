@@ -16,6 +16,7 @@ const char * const net_label[] = {
   [NET_FLOW6]	= "flow6",
   [NET_IP6_SADR]= "ipv6-sadr",
   [NET_MPLS]	= "mpls",
+  [NET_ASPA]	= "aspa",
 };
 
 const u16 net_addr_length[] = {
@@ -29,6 +30,7 @@ const u16 net_addr_length[] = {
   [NET_FLOW6]	= 0,
   [NET_IP6_SADR]= sizeof(net_addr_ip6_sadr),
   [NET_MPLS]	= sizeof(net_addr_mpls),
+  [NET_ASPA]	= sizeof(net_addr_aspa),
 };
 
 const u8 net_max_prefix_length[] = {
@@ -42,6 +44,7 @@ const u8 net_max_prefix_length[] = {
   [NET_FLOW6]	= IP6_MAX_PREFIX_LENGTH,
   [NET_IP6_SADR]= IP6_MAX_PREFIX_LENGTH,
   [NET_MPLS]	= 0,
+  [NET_ASPA]	= 0,
 };
 
 const u16 net_max_text_length[] = {
@@ -55,6 +58,7 @@ const u16 net_max_text_length[] = {
   [NET_FLOW6]	= 0,	/* "flow6 { ... }" */
   [NET_IP6_SADR]= 92,	/* "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff/128 from ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff/128" */
   [NET_MPLS]	= 7,	/* "1048575" */
+  [NET_ASPA]	= 10,	/* "4294967295" */
 };
 
 /* There should be no implicit padding in net_addr structures */
@@ -69,11 +73,29 @@ STATIC_ASSERT(sizeof(net_addr_flow4)	==  8);
 STATIC_ASSERT(sizeof(net_addr_flow6)	== 20);
 STATIC_ASSERT(sizeof(net_addr_ip6_sadr)	== 40);
 STATIC_ASSERT(sizeof(net_addr_mpls)	==  8);
+STATIC_ASSERT(sizeof(net_addr_aspa)	==  8);
+
+/* Ensure that all net_addr structures have the same alignment */
+STATIC_ASSERT(alignof(net_addr_ip4)	== alignof(net_addr));
+STATIC_ASSERT(alignof(net_addr_ip6)	== alignof(net_addr));
+STATIC_ASSERT(alignof(net_addr_vpn4)	== alignof(net_addr));
+STATIC_ASSERT(alignof(net_addr_vpn6)	== alignof(net_addr));
+STATIC_ASSERT(alignof(net_addr_roa4)	== alignof(net_addr));
+STATIC_ASSERT(alignof(net_addr_roa6)	== alignof(net_addr));
+STATIC_ASSERT(alignof(net_addr_flow4)	== alignof(net_addr));
+STATIC_ASSERT(alignof(net_addr_flow6)	== alignof(net_addr));
+STATIC_ASSERT(alignof(net_addr_flow4)	== alignof(net_addr));
+STATIC_ASSERT(alignof(net_addr_flow6)	== alignof(net_addr));
+STATIC_ASSERT(alignof(net_addr_ip6_sadr) == alignof(net_addr));
+STATIC_ASSERT(alignof(net_addr_mpls)	== alignof(net_addr));
+STATIC_ASSERT(alignof(net_addr_aspa)	== alignof(net_addr));
 
 
 int
-rd_format(const u64 rd, char *buf, int buflen)
+rd_format(const vpn_rd rd_, char *buf, int buflen)
 {
+  u64 rd = rd_to_u64(rd_);
+
   switch (rd >> 48)
   {
     case 0: return bsnprintf(buf, buflen, "%u:%u", (u32) (rd >> 32), (u32) rd);
@@ -95,7 +117,7 @@ net_format(const net_addr *N, char *buf, int buflen)
   switch (n->n.type)
   {
   case NET_IP4:
-    return bsnprintf(buf, buflen, "%I4/%d", n->ip4.prefix, n->ip4.pxlen);
+    return (buflen < IP4_PX_BUFFER_SIZE) ? -1 : ip4_px_ntop(n->ip4.prefix, n->ip4.pxlen, buf) - buf;
   case NET_IP6:
     return bsnprintf(buf, buflen, "%I6/%d", n->ip6.prefix, n->ip6.pxlen);
   case NET_VPN4:
@@ -123,6 +145,8 @@ net_format(const net_addr *N, char *buf, int buflen)
     return bsnprintf(buf, buflen, "%I6/%d from %I6/%d", n->ip6_sadr.dst_prefix, n->ip6_sadr.dst_pxlen, n->ip6_sadr.src_prefix, n->ip6_sadr.src_pxlen);
   case NET_MPLS:
     return bsnprintf(buf, buflen, "%u", n->mpls.label);
+  case NET_ASPA:
+    return bsnprintf(buf, buflen, "%u", n->aspa.asn);
   }
 
   bug("unknown network type");
@@ -147,6 +171,7 @@ net_pxmask(const net_addr *a)
     return ipa_from_ip6(ip6_mkmask(net6_pxlen(a)));
 
   case NET_MPLS:
+  case NET_ASPA:
   default:
     return IPA_NONE;
   }
@@ -180,6 +205,8 @@ net_compare(const net_addr *a, const net_addr *b)
     return net_compare_ip6_sadr((const net_addr_ip6_sadr *) a, (const net_addr_ip6_sadr *) b);
   case NET_MPLS:
     return net_compare_mpls((const net_addr_mpls *) a, (const net_addr_mpls *) b);
+  case NET_ASPA:
+    return net_compare_aspa((const net_addr_aspa *) a, (const net_addr_aspa *) b);
   }
   return 0;
 }
@@ -201,6 +228,7 @@ net_hash(const net_addr *n)
   case NET_FLOW6: return NET_HASH(n, flow6);
   case NET_IP6_SADR: return NET_HASH(n, ip6_sadr);
   case NET_MPLS: return NET_HASH(n, mpls);
+  case NET_ASPA: return NET_HASH(n, aspa);
   default: bug("invalid type");
   }
 }
@@ -223,6 +251,7 @@ net_validate(const net_addr *n)
   case NET_FLOW6: return NET_VALIDATE(n, flow6);
   case NET_IP6_SADR: return NET_VALIDATE(n, ip6_sadr);
   case NET_MPLS: return NET_VALIDATE(n, mpls);
+  case NET_ASPA: return NET_VALIDATE(n, aspa);
   default: return 0;
   }
 }
@@ -250,6 +279,7 @@ net_normalize(net_addr *N)
     return net_normalize_ip6_sadr(&n->ip6_sadr);
 
   case NET_MPLS:
+  case NET_ASPA:
     return;
   }
 }
@@ -277,6 +307,7 @@ net_classify(const net_addr *N)
     return ip6_zero(n->ip6_sadr.dst_prefix) ? (IADDR_HOST | SCOPE_UNIVERSE) : ip6_classify(&n->ip6_sadr.dst_prefix);
 
   case NET_MPLS:
+  case NET_ASPA:
     return IADDR_HOST | SCOPE_UNIVERSE;
   }
 
@@ -310,6 +341,7 @@ ipa_in_netX(const ip_addr a, const net_addr *n)
 			    ip6_mkmask(net6_pxlen(n))));
 
   case NET_MPLS:
+  case NET_ASPA:
   default:
     return 0;
   }

@@ -318,7 +318,7 @@ krt_send_route(struct krt_proto *p, int cmd, rte *e)
       msg.rtm.rtm_flags |= RTF_GATEWAY;
       msg.rtm.rtm_addrs |= RTA_GATEWAY;
       break;
-    }
+    } /* fallthrough */
 
 #ifdef RTF_REJECT
   case RTD_UNREACHABLE:
@@ -394,30 +394,6 @@ krt_replace_rte(struct krt_proto *p, net *n UNUSED, rte *new, rte *old)
   }
 }
 
-/**
- * krt_assume_onlink - check if routes on interface are considered onlink
- * @iface: The interface of the next hop
- * @ipv6: Switch to only consider IPv6 or IPv4 addresses.
- *
- * The BSD kernel does not support an onlink flag. If the interface has only
- * host addresses configured, all routes should be considered as onlink and
- * the function returns 1.
- */
-static int
-krt_assume_onlink(struct iface *iface, int ipv6)
-{
-  const u8 type = ipv6 ? NET_IP6 : NET_IP4;
-
-  struct ifa *ifa;
-  WALK_LIST(ifa, iface->addrs)
-  {
-    if ((ifa->prefix.type == type) && !(ifa->flags & IA_HOST))
-      return 0;
-  }
-
-  return 1;
-}
-
 #define SKIP(ARG...) do { DBG("KRT: Ignoring route - " ARG); return; } while(0)
 
 static void
@@ -445,8 +421,17 @@ krt_read_route(struct ks_msg *msg, struct krt_proto *p, int scan)
   if (!(flags & RTF_DONE) && !scan)
     SKIP("not done in async\n");
 
+#ifdef RTF_LLINFO
+  /* Obsolete in FreeBSD and NetBSD, still used in OpenBSD */
   if (flags & RTF_LLINFO)
     SKIP("link-local\n");
+#endif
+
+#ifdef RTF_LLDATA
+  /* Reported by NetBSD */
+  if (flags & RTF_LLDATA)
+    SKIP("link-local\n");
+#endif
 
   GETADDR(&dst, RTA_DST);
   GETADDR(&gate, RTA_GATEWAY);
@@ -867,7 +852,8 @@ krt_read_msg(struct proto *p, struct ks_msg *msg, int scan)
   switch (msg->rtm.rtm_type)
   {
     case RTM_GET:
-      if(!scan) return;
+      if (!scan) return;
+      /* fallthrough */
     case RTM_ADD:
     case RTM_DELETE:
     case RTM_CHANGE:

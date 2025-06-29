@@ -1,3 +1,41 @@
+Version 2.17.1 (2025-04-29)
+  o BSD: Fix build on NetBSD
+  o BGP: Fix crash when incoming connection for disabled protocol arrives
+  o Documentation fixes
+
+Version 2.17 (2025-04-01)
+  o Babel: next hop control for IPv4
+  o BGP: link-local next hop format configuration
+  o TCP-AO implementation for Linux
+
+Version 2.16.2 (2025-04-01)
+  o BFD: password reconfiguration crash fix
+  o L3VPN attribute fix
+  o Table removal rare crash fix
+  o Logging minor fix
+
+Version 2.16.1 (2025-01-10)
+  o ASPA: fixed parser bug in static protocol
+  o ASPA: fixed static protocol reconfiguration
+  o Babel: fixed seqno comparison
+  o BSD: fixed onlink flag assumption with Netlink
+  o Fixed memory alignment issues
+  o Fixed possible rte src collisions in L3VPN
+
+Version 2.16 (2024-12-04)
+  o BFD: Set password per session
+  o BFD: Accept zero checksum for IPv6-UDP
+  o BMP: Refactoring and optimizations
+  o OSPF: Allow loopback nexthop in OSPFv3-IPv4
+  o RPKI: TCP-MD5 authentication option
+  o Filters: Add enum types to filter grammar
+  o CLI: Configurable additional control sockets
+  o CLI: Timeformat command
+  o CLI: Dump commands need a target file
+  o ASPA support in filters, Static and RPKI
+  o Formalized contributions and credits policy
+  o Many bugfixes and improvements
+
 Version 2.15.1 (2024-03-22)
   o OSPF: Fix regression in handling PtP links
   o RPKI: Handle connection resets properly

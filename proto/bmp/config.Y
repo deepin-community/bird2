@@ -16,8 +16,8 @@ CF_DEFINES
 
 CF_DECLS
 
-CF_KEYWORDS(BMP, DESCRIPTION, ENABLED, IN, IP, MONITORING, NAME, PORT,
-  PRE_POLICY, POST_POLICY, RIB, STATION, SYSTEM)
+CF_KEYWORDS(BMP, LOCAL, STATION, ADDRESS, IP, PORT, SYSTEM, DESCRIPTION, NAME,
+	MONITORING, RIB, IN, PRE_POLICY, POST_POLICY, TX, BUFFER, LIMIT)
 
 CF_GRAMMAR
 
@@ -27,6 +27,7 @@ bmp_proto_start: proto_start BMP {
      this_proto = proto_config_new(&proto_bmp, $1);
      BMP_CFG->sys_descr = "Not defined";
      BMP_CFG->sys_name = "Not defined";
+     BMP_CFG->tx_pending_limit = (1 << 30) / page_size;
    }
  ;
 
@@ -70,6 +71,10 @@ bmp_proto:
    }
  | bmp_proto MONITORING RIB IN POST_POLICY bool ';' {
      BMP_CFG->monitoring_rib_in_post_policy = $6;
+   }
+ | bmp_proto TX BUFFER LIMIT expr ';' {
+     BMP_CFG->tx_pending_limit = $5 * (u64) (1 << 20) / page_size;
+     if ($5 < 1) cf_error("BMP TX buffer limit must be at least 1 megabyte");
    }
  ;
 

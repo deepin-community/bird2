@@ -41,7 +41,7 @@
 #endif
 
 static void slab_free(resource *r);
-static void slab_dump(resource *r);
+static void slab_dump(struct dump_request *dreq, resource *r);
 static resource *slab_lookup(resource *r, unsigned long addr);
 static struct resmem slab_memsize(resource *r);
 
@@ -68,7 +68,7 @@ static struct resclass sl_class = {
 
 struct sl_obj {
   node n;
-  uintptr_t data_align[0];
+  max_align_t data_align[0];
   byte data[0];
 };
 
@@ -168,11 +168,6 @@ struct sl_head {
   u32 used_bits[0];
 };
 
-struct sl_alignment {			/* Magic structure for testing of alignment */
-  byte data;
-  int x[0];
-};
-
 #define TLIST_PREFIX sl_head
 #define TLIST_TYPE   struct sl_head
 #define TLIST_ITEM   n
@@ -219,9 +214,7 @@ slab *
 sl_new(pool *p, uint size)
 {
   slab *s = ralloc(p, &sl_class);
-  uint align = sizeof(struct sl_alignment);
-  if (align < sizeof(void *))
-    align = sizeof(void *);
+  uint align = CPU_STRUCT_ALIGN;
   s->data_size = size;
   size = (size + align - 1) / align * align;
   s->obj_size = size;
@@ -378,18 +371,38 @@ slab_free(resource *r)
 }
 
 static void
-slab_dump(resource *r)
+slab_dump(struct dump_request *dreq, resource *r)
 {
   slab *s = (slab *) r;
   int ec=0, pc=0, fc=0;
 
+  RDUMP("(%d objs per %d bytes in page)\n",
+      s->objs_per_slab, s->obj_size);
+
+  RDUMP("%*sempty:\n", dreq->indent+3, "");
   WALK_TLIST(sl_head, h, &s->empty_heads)
+  {
+    RDUMP("%*s%p\n", dreq->indent+6, "", h);
     ec++;
+  }
+
+  RDUMP("%*spartial:\n", dreq->indent+3, "");
   WALK_TLIST(sl_head, h, &s->partial_heads)
+  {
+    RDUMP("%*s%p (", dreq->indent+6, "", h);
+    for (uint i=1; i<=s->head_bitfield_len; i++)
+      RDUMP("%08x", h->used_bits[s->head_bitfield_len-i]);
+    RDUMP(")\n");
     pc++;
+  }
+
+  RDUMP("%*sfull:\n", dreq->indent+3, "");
   WALK_TLIST(sl_head, h, &s->full_heads)
+  {
+    RDUMP("%*s%p\n", dreq->indent+6, "", h);
     fc++;
-  debug("(%de+%dp+%df blocks per %d objs per %d bytes)\n", ec, pc, fc, s->objs_per_slab, s->obj_size);
+  }
+  RDUMP("%*sempty=%d partial=%d total=%d\n", dreq->indent+3, "", ec, pc, fc);
 }
 
 static struct resmem

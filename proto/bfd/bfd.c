@@ -174,6 +174,8 @@ bfd_merge_options(const struct bfd_iface_config *cf, const struct bfd_options *o
     .idle_tx_int = opts->idle_tx_int ?: cf->idle_tx_int,
     .multiplier = opts->multiplier ?: cf->multiplier,
     .passive = opts->passive_set ? opts->passive : cf->passive,
+    .auth_type = opts->auth_type ?: cf->auth_type,
+    .passwords = opts->passwords ?: cf->passwords,
   };
 }
 
@@ -655,13 +657,15 @@ bfd_reconfigure_iface(struct bfd_proto *p, struct bfd_iface *ifa, struct bfd_con
   struct bfd_iface_config *new = bfd_find_iface_config(nc, ifa->iface);
   struct bfd_iface_config *old = ifa->cf;
 
-  /* Check options that are handled in bfd_reconfigure_session() */
+  /* Any configuration change should trigger bfd_reconfigure_session() */
   ifa->changed =
     (new->min_rx_int != old->min_rx_int) ||
     (new->min_tx_int != old->min_tx_int) ||
     (new->idle_tx_int != old->idle_tx_int) ||
     (new->multiplier != old->multiplier) ||
-    (new->passive != old->passive);
+    (new->passive != old->passive) ||
+    (new->auth_type != old->auth_type) ||
+    (new->passwords != old->passwords);
 
   /* This should be probably changed to not access ifa->cf from the BFD thread */
   birdloop_enter(p->loop);
@@ -824,11 +828,11 @@ bfd_request_free(resource *r)
 }
 
 static void
-bfd_request_dump(resource *r)
+bfd_request_dump(struct dump_request *dreq, resource *r)
 {
   struct bfd_request *req = (struct bfd_request *) r;
 
-  debug("(code %p, data %p)\n", req->hook, req->data);
+  RDUMP("(code %p, data %p)\n", req->hook, req->data);
 }
 
 static struct resclass bfd_request_class = {
@@ -1147,7 +1151,8 @@ bfd_reconfigure(struct proto *P, struct proto_config *c)
       (new->accept_ipv6 != old->accept_ipv6) ||
       (new->accept_direct != old->accept_direct) ||
       (new->accept_multihop != old->accept_multihop) ||
-      (new->strict_bind != old->strict_bind))
+      (new->strict_bind != old->strict_bind) ||
+      (new->zero_udp6_checksum_rx != old->zero_udp6_checksum_rx))
     return 0;
 
   birdloop_mask_wakeups(p->loop);
@@ -1195,14 +1200,14 @@ bfd_show_session(struct bfd_session *s, int details)
   const char *ifname = (s->ifa && s->ifa->iface) ? s->ifa->iface->name : "---";
   btime tx_int = s->last_tx ? MAX(s->des_min_tx_int, s->rem_min_rx_int) : 0;
   btime timeout = (btime) MAX(s->req_min_rx_int, s->rem_min_tx_int) * s->rem_detect_mult;
-  u8 auth_type = s->ifa->cf->auth_type;
+  u8 auth_type = s->cf.auth_type;
 
   loc_state = (loc_state < 4) ? loc_state : 0;
   rem_state = (rem_state < 4) ? rem_state : 0;
 
   byte dbuf[BFD_DIAG_BUFFER_SIZE];
   byte tbuf[TM_DATETIME_BUFFER_SIZE];
-  tm_format_time(tbuf, &config->tf_proto, s->last_state_change);
+  tm_format_time(tbuf, (this_cli->tf ?: &config->tf_proto), s->last_state_change);
 
   if (!details)
   {

@@ -37,12 +37,13 @@ static const char * const f_type_str[] = {
   [T_ENUM_RTS]	= "enum rts",
   [T_ENUM_BGP_ORIGIN] = "enum bgp_origin",
   [T_ENUM_SCOPE] = "enum scope",
-  [T_ENUM_RTC]	= "enum rtc",
   [T_ENUM_RTD]	= "enum rtd",
   [T_ENUM_ROA]	= "enum roa",
-  [T_ENUM_NETTYPE] = "enum nettype",
+  [T_ENUM_ASPA] = "enum aspa",
+  [T_ENUM_NET_TYPE] = "enum net_type",
   [T_ENUM_RA_PREFERENCE] = "enum ra_preference",
   [T_ENUM_AF]	= "enum af",
+  [T_ENUM_MPLS_POLICY] = "enum mpls_policy",
 
   [T_IP]	= "ip",
   [T_NET]	= "prefix",
@@ -632,7 +633,7 @@ val_format(const struct f_val *v, buffer *buf)
   case T_QUAD:	buffer_print(buf, "%R", v->val.i); return;
   case T_EC:	ec_format(buf2, v->val.ec); buffer_print(buf, "%s", buf2); return;
   case T_LC:	lc_format(buf2, v->val.lc); buffer_print(buf, "%s", buf2); return;
-  case T_RD:	rd_format(v->val.ec, buf2, 1024); buffer_print(buf, "%s", buf2); return;
+  case T_RD:	rd_format(v->val.rd, buf2, 1024); buffer_print(buf, "%s", buf2); return;
   case T_PREFIX_SET: trie_format(v->val.ti, buf); return;
   case T_SET:	tree_format(v->val.t, buf); return;
   case T_ENUM:	buffer_print(buf, "(enum %x)%u", v->type, v->val.i); return;
