@@ -21,12 +21,16 @@ configuration - something in config which is not keyword.
 <book>
 
 <title>BIRD {{ VERSION }} User's Guide
+
 <author>
 Ondrej Filip <it/&lt;feela@network.cz&gt;/,
 Martin Mares <it/&lt;mj@ucw.cz&gt;/,
 Maria Matejka <it/&lt;mq@jmq.cz&gt;/,
 Ondrej Zajicek <it/&lt;santiago@crfreenet.org&gt;/
 </author>
+
+<date></date>
+<documentid>bird-userdoc</documentid>
 
 <abstract>
 This document contains user documentation for the BIRD Internet Routing Daemon project.
@@ -322,6 +326,18 @@ Their keywords are <cf/roa4/ and <cf/roa6/.
 	<item>(PK) IP prefix together with its length
 	<item>(PK) Matching prefix maximal length
 	<item>(PK) AS number
+</itemize>
+
+<sect1>Autonomous System Provider Authorization routes
+<label id="aspa-routes">
+
+<p>These entries can be used to validate <cf/AS_PATH/ attribute of BGP routes.
+An ASPA entry specifies a list of valid providers for specific Autonomous System.
+Configuration keyword is <cf/aspa/.
+
+<itemize>
+	<item>(PK) AS number
+	<item>List of AS numbers of providers
 </itemize>
 
 <sect1>Flowspec for IPv4 and IPv6
@@ -1671,6 +1687,9 @@ in the foot).
 	together with an ASN. They support the same special operators as IP
 	prefixes, and also <cf/.maxlen/ which extracts maximal prefix length,
 	and <cf/.asn/ which extracts the ASN.
+
+	<cf/NET_ASPA/ prefixes hold an ASN, which can be extracted by <cf/.asn/
+	operator.
 
 	<cf/NET_FLOW4/ and <cf/NET_FLOW6/ hold an IP prefix together with a
 	flowspec rule. Filters currently do not support much flowspec parsing,
@@ -3921,7 +3940,6 @@ direction (re-export of routes to the BGP neighbor):
 
 <itemize>
 	<item><cf/export/
-	<item><cf/next hop address/
 	<item><cf/next hop self/
 	<item><cf/next hop keep/
 	<item><cf/link local next hop format/
@@ -3958,6 +3976,7 @@ direction (re-export of routes to the BGP neighbor):
 	<item><cf/graceful restart/
 	<item><cf/long lived graceful restart/
 	<item><cf/long lived stale time/
+	<item><cf/next hop address/
 	<item><cf/extended next hop/
 	<item><cf/add paths/
 	<item><cf/import table/
@@ -4147,9 +4166,7 @@ protocol bgp {
 <p>The BGP Monitoring Protocol is used for monitoring BGP sessions and obtaining
 routing table data. The current implementation in BIRD is a preliminary release
 with a limited feature set, it will be subject to significant changes in the
-future. It is not ready for production usage and therefore it is not compiled
-by default and have to be enabled during installation by the configure option
-<tt/--with-protocols=/.
+future.
 
 <p>The implementation supports monitoring protocol state changes, pre-policy
 routes (in <ref id="bgp-import-table" name="BGP import tables">) and post-policy
@@ -6515,7 +6532,6 @@ Note that for negated matches, value must be either zero or equal to bitmask
 <p><descrip>
 	<tag><label id="flow-dst">dst <m/inet4/</tag>
 	Set a matching destination prefix (e.g. <cf>dst 192.168.0.0/16</cf>).
-	Only this option is mandatory in IPv4 Flowspec.
 
 	<tag><label id="flow-src">src <m/inet4/</tag>
 	Set a matching source prefix (e.g. <cf>src 10.0.0.0/8</cf>).
@@ -6583,7 +6599,6 @@ protocol static {
 	but with prefix <cf/offset/ <m/number/ too (e.g.
 	<cf>::1234:5678:9800:0000/101 offset 64</cf>). Offset means to don't
 	care of <m/number/ first bits.
-	<item>IPv6 Flowspec hasn't mandatory any flowspec component.
 	<item>In IPv6 packets, there is a matching the last next header value
 	for a matching IP protocol number (e.g. <cf>next header 6</cf>).
 	<item>It is not possible to set <cf>dont_fragment</cf> as a type of
@@ -6702,23 +6717,21 @@ versions of BIRD:
 (<HTMLURL URL="mailto:bird-users@network.cz" name="bird-users@network.cz">)
 where you can share your experiences with the other users and consult
 your problems with the authors. To subscribe to the list, visit
-<HTMLURL URL="http://bird.network.cz/?m_list" name="http://bird.network.cz/?m_list">.
-The home page of BIRD can be found at <HTMLURL URL="http://bird.network.cz/" name="http://bird.network.cz/">.
+<HTMLURL URL="https://bird.network.cz/mailman/listinfo/bird-users" name="https://bird.network.cz/mailman/listinfo/bird-users">.
+The home page of BIRD can be found at <HTMLURL URL="http://bird.nic.cz/" name="http://bird.nic.cz/">.
 
 <p>BIRD is a relatively young system and it probably contains some bugs. You can
 report any problems to the bird-users list and the authors will be glad to solve
 them, but before you do so, please make sure you have read the available
 documentation and that you are running the latest version (available at
-<HTMLURL URL="ftp://bird.network.cz/pub/bird" name="bird.network.cz:/pub/bird">).
+<HTMLURL URL="https://bird.nic.cz/get-bird" name="https://bird.nic.cz/get-bird">).
 (Of course, a patch which fixes the bug is always welcome as an attachment.)
 
 <p>If you want to understand what is going inside, Internet standards are a good
 and interesting reading. You can get them from
-<HTMLURL URL="ftp://ftp.rfc-editor.org/" name="ftp.rfc-editor.org"> (or a
-nicely sorted version from <HTMLURL URL="ftp://atrey.karlin.mff.cuni.cz/pub/rfc"
-name="atrey.karlin.mff.cuni.cz:/pub/rfc">).
+<HTMLURL URL="ftp://ftp.rfc-editor.org/" name="ftp.rfc-editor.org">.
 
-<p><it/Good luck!/
+<p><it/Good luck and happy routing!/
 
 </book>
 

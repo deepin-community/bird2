@@ -1,3 +1,32 @@
+bird2 (2.17.5-0+deb13u1) trixie-security; urgency=medium
+
+  * New upstream release.
+
+ -- Marco d'Itri <md@linux.it>  Sun, 14 Jun 2026 20:44:10 +0200
+
+bird2 (2.17.1-1+deb13u2) stable; urgency=medium
+
+  * Backport all fixes from upstream 2.17.4:
+    + ASPA: Fix downstream validation
+    + BGP: Fix restart behavior on reconfiguration
+    + Filters: Fix string attributes
+    + Logging: Fix error handling
+
+ -- Marco d'Itri <md@linux.it>  Tue, 07 Apr 2026 03:07:30 +0200
+
+bird2 (2.17.1-1+deb13u1) stable; urgency=medium
+
+  * New maintainer.
+  * Use Restart=on-abnormal instead of on-abort. (Closes: #1099513)
+  * Backport all fixes from upstream 2.17.3:
+    + RAdv: Fix flags for deprecated prefixes.
+    + BMP: Fix crash when exporting a route with non-bgp attributes.
+  * Backport all fixes from upstream 2.17.2:
+    + ASPA check fix for AS_SET.
+    + Invalid check fix in text_or_ipa grammar.
+
+ -- Marco d'Itri <md@linux.it>  Thu, 18 Dec 2025 00:21:35 +0100
+
 bird2 (2.17.1-1) unstable; urgency=medium
 
   * New upstream version 2.17.1

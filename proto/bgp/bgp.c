@@ -2830,17 +2830,32 @@ bgp_channel_reconfigure(struct channel *C, struct channel_config *CC, int *impor
   if ((new->gw_mode != old->gw_mode) ||
       (new->next_hop_prefer != old->next_hop_prefer) ||
       (new->aigp != old->aigp) ||
-      (new->cost != old->cost))
+      (new->cost != old->cost) ||
+      (new->c.preference != old->c.preference))
   {
-    /* import_changed itself does not force ROUTE_REFRESH when import_table is active */
+    /* Route refresh needed, these attributes are set by BGP itself
+     * and even if import table exists, we can't use it */
+
+    /* Route refresh impossible, restart is needed */
+    if ((c->c.channel_state == CS_UP) && !p->route_refresh)
+      return 0;
+
+    /* Force ROUTE_REFRESH with import table; otherwise
+     * it will be forced by import_changed set to 1 later */
     if (c->c.in_table && (c->c.channel_state == CS_UP))
       bgp_schedule_packet(p->conn, c, PKT_ROUTE_REFRESH);
+
+    /* Note that preference is already handled in channel_reconfigure(),
+       but we need it handle again here for the ROUTE_REFRESH trigger */
 
     *import_changed = 1;
   }
 
-  if (!ipa_equal(new->next_hop_addr, old->next_hop_addr) ||
-      (new->next_hop_self != old->next_hop_self) ||
+  /* Outgoing next hop setting is too complex to update, forcing restart. */
+  if (!ipa_equal(new->next_hop_addr, old->next_hop_addr))
+    return 0;
+
+  if ((new->next_hop_self != old->next_hop_self) ||
       (new->next_hop_keep != old->next_hop_keep) ||
       (new->llnh_format != old->llnh_format) ||
       (new->aigp != old->aigp) ||
