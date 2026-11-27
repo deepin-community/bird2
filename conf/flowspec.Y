@@ -59,7 +59,7 @@ flow_num_type_:
  | ICMP CODE	{ $$ = FLOW_TYPE_ICMP_CODE; }
  | LENGTH	{ $$ = FLOW_TYPE_PACKET_LENGTH; }
  | DSCP		{ $$ = FLOW_TYPE_DSCP; }
- | LABEL	{ $$ = FLOW_TYPE_LABEL; }
+ | LABEL	{ $$ = FLOW_TYPE_LABEL; if (!this_flow->ipv6) cf_error("Flow label not valid in flow4"); }
  ;
 
 flow_num_type: flow_num_type_{ flow_builder_set_type(this_flow, $1); };
@@ -73,11 +73,11 @@ flow_srcdst:
 
 flow_num_opts:
    flow_num_op expr {
-     flow_check_cf_value_length(this_flow, $2);
+     flow_check_cf_numeric_arg(this_flow, $2);
      flow_builder_add_op_val(this_flow, $1, $2);
    }
  | flow_num_opts flow_logic_op flow_num_op expr {
-     flow_check_cf_value_length(this_flow, $4);
+     flow_check_cf_numeric_arg(this_flow, $4);
      flow_builder_add_op_val(this_flow, $2 | $3, $4);
    }
  | flow_num_opt_ext
@@ -86,12 +86,12 @@ flow_num_opts:
 
 flow_num_opt_ext_expr:
    expr {
-     flow_check_cf_value_length(this_flow, $1);
+     flow_check_cf_numeric_arg(this_flow, $1);
      flow_builder_add_op_val(this_flow, FLOW_OP_EQ, $1);
    }
  | expr DDOT expr {
-     flow_check_cf_value_length(this_flow, $1);
-     flow_check_cf_value_length(this_flow, $3);
+     flow_check_cf_numeric_arg(this_flow, $1);
+     flow_check_cf_numeric_arg(this_flow, $3);
      flow_builder_add_op_val(this_flow, FLOW_OP_GEQ, $1);
      flow_builder_add_op_val(this_flow, FLOW_OP_AND | FLOW_OP_LEQ, $3);
    }
@@ -104,15 +104,15 @@ flow_num_opt_ext:
 
 flow_bmk_opts:
    flow_neg expr '/' expr {
-     flow_check_cf_bmk_values(this_flow, $1, $2, $4);
+     flow_check_cf_bitmask_arg(this_flow, $1, $2, $4);
      flow_builder_add_val_mask(this_flow, $1, $2, $4);
    }
  | flow_bmk_opts flow_logic_op flow_neg expr '/' expr {
-     flow_check_cf_bmk_values(this_flow, $3, $4, $6);
+     flow_check_cf_bitmask_arg(this_flow, $3, $4, $6);
      flow_builder_add_val_mask(this_flow, $2 | $3, $4, $6);
    }
  | flow_bmk_opts ',' flow_neg expr '/' expr {
-     flow_check_cf_bmk_values(this_flow, $3, $4, $6);
+     flow_check_cf_bitmask_arg(this_flow, $3, $4, $6);
      flow_builder_add_val_mask(this_flow, 0x40 | $3, $4, $6); /* AND */
    }
  ;
@@ -123,7 +123,7 @@ flow_neg:
  ;
 
 flow_frag_val:
-   DONT_FRAGMENT  { $$ = 1; }
+   DONT_FRAGMENT  { $$ = 1; if (this_flow->ipv6) cf_error("Flag dont_fragment not valid in flow6"); }
  | IS_FRAGMENT	  { $$ = 2; }
  | FIRST_FRAGMENT { $$ = 4; }
  | LAST_FRAGMENT  { $$ = 8; }

@@ -177,6 +177,27 @@ as_path_contains_confed(const struct adata *path)
   return 0;
 }
 
+int
+as_path_contains_set(const struct adata *path)
+{
+  const byte *pos = path->data;
+  const byte *end = pos + path->length;
+
+  while (pos < end)
+  {
+    uint type = pos[0];
+    uint slen = 2 + BS * pos[1];
+
+    if ((type == AS_PATH_SET) ||
+	(type == AS_PATH_CONFED_SET))
+      return 1;
+
+    pos += slen;
+  }
+
+  return 0;
+}
+
 struct adata *
 as_path_strip_confed(struct linpool *pool, const struct adata *path)
 {
@@ -882,7 +903,8 @@ pm_mark(struct pm_pos *pos, int *i, int plen, int *nl, int *nh)
 int
 as_path_match(const struct adata *path, const struct f_path_mask *mask)
 {
-  struct pm_pos pos[2048 + 1];
+  struct pm_pos *pos = tmp_alloc((sizeof *pos) * (path->length / BS + 1));
+
   int plen = parse_path(path, pos);
   int l, h, i, nh, nl, last, loop;
   u32 val = 0;
