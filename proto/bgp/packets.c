@@ -922,12 +922,14 @@ bgp_rx_open(struct bgp_conn *conn, byte *pkt, uint len)
 
   /* Compute effective hold and keepalive times */
   uint hold_time = MIN(hold, p->cf->hold_time);
+  uint base_hold_time = p->cf->hold_time ?: 1;
+
   uint keepalive_time = p->cf->keepalive_time ?
-    (p->cf->keepalive_time * hold_time / p->cf->hold_time) :
+    (p->cf->keepalive_time * hold_time / base_hold_time) :
     hold_time / 3;
 
   uint send_hold_time = (p->cf->send_hold_time >= 0) ?
-    (p->cf->send_hold_time * hold_time / p->cf->hold_time) :
+    ((u64) p->cf->send_hold_time * hold_time / base_hold_time) :
     2 * hold_time;
 
   /* Keepalive time might be rounded down to zero */
@@ -2092,8 +2094,8 @@ bgp_decode_nlri_flow4(struct bgp_parse_state *s, byte *pos, uint len, rta *a)
     if (len < flen)
       bgp_parse_error(s, 1);
 
-    /* Validate flow data */
-    enum flow_validated_state r = flow4_validate(data, dlen);
+    /* Decode flow data */
+    enum flow_validated_state r = flow4_decode(data, dlen);
     if (r != FLOW_ST_VALID)
     {
       log(L_REMOTE "%s: Invalid flow route: %s", s->proto->p.name, flow_validated_state_str(r));
@@ -2104,7 +2106,7 @@ bgp_decode_nlri_flow4(struct bgp_parse_state *s, byte *pos, uint len, rta *a)
     uint pxlen = 0;
 
     /* Decode dst prefix */
-    if (data[0] == FLOW_TYPE_DST_PREFIX)
+    if (dlen && (data[0] == FLOW_TYPE_DST_PREFIX))
     {
       px = flow_read_ip4_part(data);
       pxlen = flow_read_pxlen(data);
@@ -2187,8 +2189,8 @@ bgp_decode_nlri_flow6(struct bgp_parse_state *s, byte *pos, uint len, rta *a)
     if (len < flen)
       bgp_parse_error(s, 1);
 
-    /* Validate flow data */
-    enum flow_validated_state r = flow6_validate(data, dlen);
+    /* Decode flow data */
+    enum flow_validated_state r = flow6_decode(data, dlen);
     if (r != FLOW_ST_VALID)
     {
       log(L_REMOTE "%s: Invalid flow route: %s", s->proto->p.name, flow_validated_state_str(r));
@@ -2199,7 +2201,7 @@ bgp_decode_nlri_flow6(struct bgp_parse_state *s, byte *pos, uint len, rta *a)
     uint pxlen = 0;
 
     /* Decode dst prefix */
-    if (data[0] == FLOW_TYPE_DST_PREFIX)
+    if (dlen && (data[0] == FLOW_TYPE_DST_PREFIX))
     {
       px = flow_read_ip6_part(data);
       pxlen = flow_read_pxlen(data);
@@ -2550,6 +2552,7 @@ bgp_create_update_bmp(struct bgp_channel *c, byte *buf, byte *end, struct bgp_bu
     .add_path = c->add_path_rx,
     .mpls = c->desc->mpls,
     .sham = 1,
+    .ignore_non_bgp_attrs = 1,
   };
 
   if (!update)
